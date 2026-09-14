@@ -1,0 +1,2408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyPlanner PRO - Organizador Inteligente de Ciclo</title>
+    <style>
+        :root {
+            --bg-main: #131318; --bg-panel: #1e1e26; --bg-card: #272732; --bg-table-row: #23232c;
+            --text-primary: #f3f4f6; --text-secondary: #9ca3af; --border-color: #383846;
+            --color-primary: #3b82f6; --color-success: #10b981; --color-danger: #ef4444;
+            --color-purple: #8b5cf6; --color-warning: #f59e0b;
+            --color-blue-gradient: linear-gradient(135deg, #0284c7, #38bdf8);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-main); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column; }
+
+        header { display: flex; justify-content: space-between; align-items: center; padding: 16px 36px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-panel); flex-wrap: wrap; gap: 16px; position: sticky; top: 0; z-index: 100;}
+        .logo { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; min-width: max-content; }
+        .nav-tabs { display: flex; gap: 8px; min-width: max-content; }
+        .nav-tab { color: var(--text-secondary); cursor: pointer; padding: 8px 14px; border-radius: 6px; transition: all 0.2s; font-weight: 500; font-size: 14px; user-select: none; }
+        .nav-tab:hover { color: var(--text-primary); background-color: rgba(255, 255, 255, 0.03); }
+        .nav-tab.active { color: var(--text-primary); background-color: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); }
+
+        .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .profile-select-wrap { display: flex; align-items: center; gap: 6px; background: var(--bg-card); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); }
+        .profile-select-wrap select { background: transparent; border: none; padding: 4px 8px; font-size: 13px; font-weight: 600; color: var(--text-primary); cursor: pointer; }
+
+        main { padding: 30px 40px; max-width: 1440px; margin: 0 auto; width: 100%; flex: 1; }
+        .view-section { display: none; animation: fadeIn 0.3s ease; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        h2 { font-size: 22px; margin-bottom: 20px; font-weight: 600; }
+        h3 { font-size: 18px; margin-bottom: 16px; font-weight: 600; color: var(--text-primary); }
+
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; color: white; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; user-select: none; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .btn-primary { background-color: var(--color-primary); }
+        .btn-success { background-color: var(--color-success); }
+        .btn-danger { background-color: var(--color-danger); }
+        .btn-warning { background-color: var(--color-warning); color: #000; }
+        .btn-outline { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-primary); }
+        .btn-outline:hover { background-color: rgba(255,255,255,0.05); }
+        .btn-icon { padding: 8px 12px; font-size: 13px; }
+
+        input, select { background-color: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 14px; border-radius: 6px; outline: none; font-size: 13px;}
+        input:focus, select:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+
+        /* Banner de Atraso */
+        .late-banner { background-color: rgba(239, 68, 68, 0.12); border: 1px solid var(--color-danger); color: #fca5a5; padding: 16px 20px; border-radius: 10px; margin-bottom: 24px; display: none; align-items: center; justify-content: space-between; gap: 16px; }
+        .late-banner-info { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+        .late-banner-actions { display: flex; gap: 10px; }
+
+        .panel { background-color: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+        .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+        .stats-header { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
+        .stat-card { background-color: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; }
+        .stat-card.blue-card { background: var(--color-blue-gradient); border: none; color: white; }
+        .stat-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 30px; font-weight: 700; }
+
+        .tasks-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+        .tasks-table th { padding: 12px 16px; border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-weight: 500; font-size: 12px; text-transform: uppercase; }
+        .tasks-table td { padding: 14px 16px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-panel); transition: background-color 0.2s; }
+        .tasks-table tr:nth-child(even) td { background-color: var(--bg-table-row); }
+        .tasks-table tr.staged td { background-color: rgba(16, 185, 129, 0.06); }
+        .color-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; vertical-align: middle; }
+
+        .progress-list { display: flex; flex-direction: column; gap: 16px; }
+        .progress-item { display: flex; flex-direction: column; gap: 8px; }
+        .progress-header { display: flex; justify-content: space-between; font-size: 14px; }
+        .progress-bar-bg { width: 100%; height: 7px; background-color: var(--bg-main); border-radius: 4px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+        
+        /* Cards de Manutenção Inteligente */
+        .maintenance-item { background-color: var(--bg-card); border-radius: 8px; margin-bottom: 10px; font-size: 13px; transition: transform 0.15s; }
+        .maintenance-item:hover { transform: translateX(2px); }
+
+        /* CARDS DE DISCIPLINAS */
+        .controls-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 14px; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+        .subject-card { background-color: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+        .subject-card-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+        .subject-meta { font-size: 13px; color: var(--text-secondary); line-height: 1.8; }
+        .subject-meta strong { color: var(--text-primary); }
+
+        /* ACCORDION MINIMALISTA PARA QUESTÕES COM SETA */
+        .q-accordion { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; margin-bottom: 10px; transition: border-color 0.2s; }
+        .q-accordion:hover { border-color: rgba(59, 130, 246, 0.4); }
+        .q-accordion summary { padding: 12px 16px; cursor: pointer; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; user-select: none; list-style: none; }
+        .q-accordion summary::-webkit-details-marker { display: none; }
+        .q-accordion-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-right: 10px; }
+        .q-arrow-badge { display: flex; align-items: center; gap: 10px; }
+        .q-arrow { font-size: 12px; transition: transform 0.25s ease; color: var(--text-secondary); display: inline-block; }
+        .q-accordion[open] .q-arrow { transform: rotate(180deg); color: var(--color-primary); }
+        .q-body { padding: 16px; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 12px; background-color: rgba(0,0,0,0.15); animation: fadeIn 0.2s ease; }
+
+        /* Modais */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background-color: var(--bg-panel); padding: 26px; border-radius: 12px; width: 440px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 16px; animation: fadeIn 0.2s ease; }
+        .modal-content.large { width: 940px; max-width: 95vw; max-height: 90vh; overflow: hidden; }
+
+        .cust-list-container { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; padding-right: 10px; margin-top: 10px; max-height: 52vh; }
+        .cust-topic-row { display: flex; align-items: center; gap: 12px; padding: 12px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; }
+        .cust-topic-row.unlisted, .cust-topic-row.completed { opacity: 0.45; background-color: rgba(0,0,0,0.2); }
+        .cust-topic-name { flex: 1.5; font-size: 13px; font-weight: 500; }
+        .cust-phases { display: flex; gap: 10px; flex: 1.6; justify-content: center; }
+        .cust-phases label { display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; }
+        .cust-status-group { flex: 1.5; display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
+        .cust-status-group select { width: 110px; font-size: 11px; padding: 6px; font-weight: 600; }
+        .teo-input-wrapper { display: flex; align-items: center; gap: 4px; }
+        .teo-input-wrapper span { font-size: 11px; color: var(--text-secondary); }
+
+        /* Calendário Integrado e Drag & Drop */
+        .calendar-wrapper { display: flex; flex-direction: column; gap: 20px; }
+        .calendar-nav { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 14px 20px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 14px; align-items: start; overflow-x: auto; }
+        
+        .day-column { display: flex; flex-direction: column; gap: 12px; min-width: 150px; padding: 6px; border-radius: 10px; transition: background-color 0.2s, border-color 0.2s; border: 2px dashed transparent; }
+        .day-column.drag-over { border-color: var(--color-primary); background-color: rgba(59, 130, 246, 0.1); }
+        .task-card[draggable="true"] { cursor: grab; user-select: none; }
+        .task-card.dragging { opacity: 0.4; transform: scale(0.96); border-color: var(--color-primary); }
+
+        .day-header { background-color: var(--bg-card); padding: 12px; text-align: center; border-radius: 8px; border: 1px solid var(--border-color); font-weight: 600; font-size: 13px; line-height: 1.4; }
+        .day-header.today { background-color: rgba(59, 130, 246, 0.12); border-color: var(--color-primary); color: var(--color-primary); }
+        .day-header.completed-day { border-color: var(--color-success); color: var(--color-success); }
+        
+        .task-card { background-color: #1a1a24; border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+        .task-card.staged { border-color: var(--color-success); background-color: rgba(16, 185, 129, 0.05); }
+        .task-card.locked { opacity: 0.4; text-decoration: line-through; }
+        .badge-fase { font-size: 11px; background: rgba(139, 92, 246, 0.2); color: var(--color-purple); padding: 3px 6px; border-radius: 4px; font-weight: 600; }
+        .duration-tag { font-size: 11px; color: var(--text-secondary); background: var(--bg-panel); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); }
+
+        input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; border: 2px solid var(--border-color); border-radius: 4px; background-color: var(--bg-main); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
+        input[type="checkbox"]:checked { background-color: var(--color-success); border-color: var(--color-success); }
+        input[type="checkbox"]:checked::after { content: "✓"; color: white; font-weight: bold; font-size: 12px; }
+        input[type="checkbox"]:disabled { opacity: 0.4; cursor: not-allowed; }
+        .big-chk { width: 22px !important; height: 22px !important; }
+        .big-chk:checked::after { font-size: 14px !important; }
+
+        .confirmation-box { margin-top: 20px; padding: 24px; border-radius: 12px; background-color: rgba(16, 185, 129, 0.05); border: 1px solid var(--color-success); display: none; flex-direction: column; align-items: center; gap: 16px; }
+        .day-completed-state { padding: 30px; text-align: center; background-color: rgba(59, 130, 246, 0.05); border: 1px dashed var(--color-primary); border-radius: 12px; display: none; flex-direction: column; gap: 12px; }
+
+        /* Configurações Globais e Limites Diários */
+        .cycle-settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+        .cycle-settings-grid > div { display: flex; flex-direction: column; gap: 6px; }
+        .cycle-settings-grid label { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; }
+
+        /* Cronômetro Flutuante / Integrado */
+        .timer-widget { display: flex; align-items: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 4px 12px; border-radius: 20px; font-size: 13px; }
+        .timer-digits { font-family: monospace; font-size: 15px; font-weight: 700; color: var(--color-primary); min-width: 65px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-primary)"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            StudyPlanner PRO
+        </div>
+        <div class="nav-tabs">
+            <div class="nav-tab active" onclick="switchTab('dashboard')">Dashboard</div>
+            <div class="nav-tab" onclick="switchTab('disciplinas')">Disciplinas & Fases</div>
+            <div class="nav-tab" onclick="switchTab('questoes')">Questões</div>
+            <div class="nav-tab" onclick="switchTab('calendario')">Ciclo & Calendário</div>
+        </div>
+        <div class="header-actions">
+            <!-- Cronômetro de Estudo Líquido -->
+            <div class="timer-widget">
+                <span id="timer-icon">⏱️</span>
+                <span class="timer-digits" id="timer-display">00:00:00</span>
+                <button class="btn btn-outline btn-icon" id="timer-btn-toggle" onclick="toggleTimer()" title="Iniciar/Pausar">▶</button>
+                <button class="btn btn-outline btn-icon" onclick="resetTimer()" title="Zerar">↺</button>
+            </div>
+
+            <!-- Gerenciamento de Perfil com Salvamento Seguro -->
+            <div class="profile-select-wrap">
+                <span style="font-size:12px; color:var(--text-secondary);">Perfil:</span>
+                <select id="profile-select" onchange="switchProfile(this.value)"></select>
+            </div>
+            <button class="btn btn-outline btn-icon" onclick="createNewProfile()" title="Novo Perfil">+ Perfil</button>
+            <button class="btn btn-outline btn-icon" onclick="openProfileSettingsModal()" title="Configurações e Exclusão de Perfis">⚙️</button>
+            <button class="btn btn-outline btn-icon" onclick="exportBackupJSON()" title="Exportar Backup JSON">💾 Backup</button>
+            <button class="btn btn-outline btn-icon" onclick="document.getElementById('import-file-input').click()" title="Restaurar Backup">📂 Restaurar</button>
+            <input type="file" id="import-file-input" style="display:none" onchange="importBackupJSON(event)" accept=".json">
+        </div>
+    </header>
+
+    <main>
+        <!-- BANNER DE ATRASO / METAS NÃO CUMPRIDAS -->
+        <div id="late-warning-banner" class="late-banner">
+            <div class="late-banner-info">
+                <span style="font-size: 24px;">⚠️</span>
+                <div>
+                    <strong>Atenção: Metas em atraso detectadas!</strong>
+                    <div style="font-size: 13px; color: #fca5a5;">Você tem tarefas do ciclo pendentes de dias anteriores. Não deixe acumular!</div>
+                </div>
+            </div>
+            <div class="late-banner-actions">
+                <button class="btn btn-warning" onclick="realignCycleToToday()">🔄 Reajustar Ciclo para Hoje</button>
+                <button class="btn btn-outline" onclick="dismissLateBanner()">Ignorar</button>
+            </div>
+        </div>
+
+        <!-- DASHBOARD -->
+        <section id="view-dashboard" class="view-section active">
+            <div class="stats-header">
+                <div class="stat-card blue-card">
+                    <div class="stat-title">Aproveitamento Geral</div>
+                    <div class="stat-value" id="perf-val">0,0%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title" style="color: var(--color-warning);">🔥 Sequência (Streak)</div>
+                    <div class="stat-value" id="streak-val">0 dias</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title" style="color: var(--color-success);">⏱️ Horas Líquidas</div>
+                    <div class="stat-value" id="hours-val">0h00m</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-title" style="color: var(--color-purple);">📚 Metas Validadas</div>
+                    <div class="stat-value" id="topics-val">0</div>
+                </div>
+            </div>
+
+            <div class="panel" style="border-color: var(--color-primary);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3>Tarefas Ativas de Hoje (<span id="today-name" style="color: var(--color-primary);">Nenhum Ciclo</span>)</h3>
+                    <button class="btn btn-primary" id="btn-extra-task" onclick="openExtraTaskModal()" style="display: none;">+ Adicionar Tarefa Extra</button>
+                </div>
+                
+                <div class="table-responsive" id="tasks-table-container">
+                    <table class="tasks-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Disciplina</th>
+                                <th>Fase Atual</th>
+                                <th>Assunto</th>
+                                <th>Carga Horária</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="today-tasks-body"></tbody>
+                    </table>
+                </div>
+
+                <div id="confirmation-box" class="confirmation-box">
+                    <h4 style="color: var(--color-success); font-size: 18px; text-align: center;">🎉 Excelente! Metas do dia concluídas.</h4>
+                    <button class="btn btn-success" onclick="commitTodayProgress()">✓ Finalizar o Dia e Avançar</button>
+                </div>
+
+                <div id="day-completed-box" class="day-completed-state">
+                    <h3 style="color: var(--color-primary); font-size: 22px;">Macro-Ciclo Concluído! 🏆</h3>
+                    <p style="color: var(--text-secondary); font-size: 15px;">Você exauriu todas as tarefas geradas. Vá até o calendário para configurar uma nova etapa.</p>
+                    <button class="btn btn-primary" onclick="switchTab('calendario')">Ir para Ciclo & Calendário</button>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="panel">
+                    <h3>Exaustão do Edital (Progresso por Fases)</h3>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">A barra avança a cada fase concluída (Teoria, Revisão, Questões).</p>
+                    <div class="progress-list" id="progress-container"></div>
+                </div>
+                <div class="panel">
+                    <h3>Atividade de Manutenção Inteligente</h3>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">
+                        Priorização calculada por <strong>Tempo sem Contato</strong> (≥ 1 dia) e <strong>Índice de Acertos</strong>.
+                    </p>
+                    <div id="maintenance-container"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- DISCIPLINAS -->
+        <section id="view-disciplinas" class="view-section">
+            <div class="controls-header">
+                <div>
+                    <h2>Disciplinas do Plano</h2>
+                    <p style="color: var(--text-secondary); font-size: 14px;">Gerencie disciplinas, pesos e configure os assuntos em lote através do botão "Personalizar".</p>
+                </div>
+                <button class="btn btn-primary" onclick="openSubjectModal()">+ Adicionar Disciplina</button>
+            </div>
+            <div class="cards-grid" id="subjects-container"></div>
+        </section>
+
+        <!-- QUESTÕES COM ACCORDION RETRÁTIL -->
+        <section id="view-questoes" class="view-section">
+            <div class="controls-header">
+                <div>
+                    <h2>Desempenho por Assunto</h2>
+                    <p style="color: var(--text-secondary); font-size: 14px;">Clique no assunto desejado para abrir os campos de registro de questões e links de cadernos.</p>
+                </div>
+            </div>
+            <div class="cards-grid" id="questions-container"></div>
+        </section>
+
+        <!-- CICLO & CALENDÁRIO COM DRAG AND DROP -->
+        <section id="view-calendario" class="view-section">
+            <div class="controls-header">
+                <div>
+                    <h2>Cronograma e Ciclo de Estudos</h2>
+                    <p style="color: var(--text-secondary); font-size: 14px;">Arraste qualquer tarefa entre os dias da semana para reorganizar seu estudo livremente.</p>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-outline" onclick="openCycleSettingsModal()" style="border: 1px solid var(--border-color); background: var(--bg-card);" title="Ajustar limites diários e tempos">
+                        ⚙️ Configurações do Ciclo
+                    </button>
+                    <button class="btn btn-primary" onclick="generateMacroCycle()">
+                        ⚡ Gerar Ciclo a partir de Hoje
+                    </button>
+                </div>
+            </div>
+            
+            <div class="calendar-wrapper">
+                <div class="calendar-nav" id="calendar-nav" style="display: none;">
+                    <button class="btn btn-outline" onclick="prevCalWeek()">⬅️ Semana Anterior</button>
+                    <strong id="cal-week-label" style="font-size: 16px; color: var(--color-primary);">Semana 1</strong>
+                    <button class="btn btn-outline" onclick="nextCalWeek()">Próxima Semana ➡️</button>
+                </div>
+                <div class="calendar-grid" id="calendar-grid"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Nova Disciplina -->
+    <div id="modal-disciplina" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Nova Disciplina</h3>
+            <div>
+                <label style="font-size:12px; color:var(--text-secondary);">Nome da Matéria:</label>
+                <input type="text" id="new-subj-name" placeholder="Ex: Direito Penal, Português" style="width:100%; margin-top:4px;">
+            </div>
+            <div>
+                <label style="font-size:12px; color:var(--text-secondary);">Peso Base no Concurso (1 a 5):</label>
+                <input type="number" id="new-subj-weight" min="1" max="5" value="3" style="width:100%; margin-top:4px;">
+            </div>
+            <div>
+                <label style="font-size:12px; color:var(--text-secondary);">Cor Identificadora:</label>
+                <input type="color" id="new-subj-color" value="#3b82f6" style="height: 40px; width: 100%; padding: 2px; margin-top:4px;">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn btn-primary" style="flex:1;" onclick="saveNewSubject()">Salvar Disciplina</button>
+                <button class="btn btn-outline" style="flex:1;" onclick="document.getElementById('modal-disciplina').style.display = 'none'">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL GRANDE: Personalizar Lote -->
+    <div id="modal-customize" class="modal-overlay">
+        <div class="modal-content large">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
+                <div>
+                    <h3 id="cust-title" style="color: var(--color-primary); margin: 0;">Personalizar</h3>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-top: 5px;">Configure as fases, tempos de teoria e o status de cada assunto.</p>
+                </div>
+                <div style="background: var(--bg-card); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px;">
+                    <label style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Peso (1 a 5):</label>
+                    <input type="number" id="cust-sub-weight" min="1" max="5" style="width: 60px; padding: 4px 8px; text-align: center; font-weight: bold; background: var(--bg-main);">
+                </div>
+            </div>
+            
+            <div style="display:flex; gap: 10px; margin-bottom: 10px;">
+                 <input type="text" id="cust-new-topic" placeholder="Novo assunto para esta disciplina..." style="flex:1;">
+                 <button class="btn btn-primary" onclick="addTopicFromCust()">+ Adicionar Assunto</button>
+            </div>
+
+            <div style="display: flex; gap: 10px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; align-items: center; margin-bottom: 5px;">
+                <span style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Marcar/Desmarcar Todos:</span>
+                <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleAllCustPhase('Teoria')">Teoria</button>
+                <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleAllCustPhase('Revisão')">Revisão</button>
+                <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleAllCustPhase('Questões')">Questões</button>
+            </div>
+            
+            <div class="cust-list-container" id="cust-topics-list"></div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-success" style="flex: 2; font-size: 14px;" onclick="saveCustomization()">✓ Salvar Configurações</button>
+                <button class="btn btn-outline" style="flex: 1;" onclick="document.getElementById('modal-customize').style.display = 'none'">Descartar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: TAREFA EXTRA -->
+    <div id="modal-extra-task" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="color: var(--color-primary); margin-bottom: 5px;">Adicionar Tarefa Extra</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">A tarefa será inserida no seu dia ativo de estudo.</p>
+
+            <div>
+                <label style="font-size: 13px; color: var(--text-secondary);">Disciplina</label>
+                <select id="extra-sub" style="width: 100%; margin-top: 4px;" onchange="updateExtraTaskTopics()"></select>
+            </div>
+            <div>
+                <label style="font-size: 13px; color: var(--text-secondary);">Assunto</label>
+                <select id="extra-topic" style="width: 100%; margin-top: 4px;"></select>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label style="font-size: 13px; color: var(--text-secondary);">Fase</label>
+                    <select id="extra-phase" style="width: 100%; margin-top: 4px;">
+                        <option value="Teoria">Teoria</option>
+                        <option value="Revisão">Revisão</option>
+                        <option value="Questões">Questões</option>
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 13px; color: var(--text-secondary);">Tempo (Max 1.5h)</label>
+                    <input type="number" id="extra-time" style="width: 100%; margin-top: 4px;" step="0.5" value="1.0" min="0.5" max="1.5">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                <div style="flex: 1;">
+                    <label style="font-size: 13px; color: var(--text-secondary);">Questões (Opcional)</label>
+                    <input type="number" id="extra-q-tot" style="width: 100%; margin-top: 4px;" placeholder="Total">
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 13px; color: var(--text-secondary);">Acertos</label>
+                    <input type="number" id="extra-q-cor" style="width: 100%; margin-top: 4px;" placeholder="Acertos">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-primary" style="flex: 1;" onclick="saveExtraTask()">Adicionar ao Dia</button>
+                <button class="btn btn-outline" style="flex: 1;" onclick="closeExtraTaskModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Configurações de Perfil e Dados -->
+    <div id="modal-profile-settings" class="modal-overlay">
+        <div class="modal-content" style="width: 500px; max-width: 95vw;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                <h3 style="margin: 0; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">⚙️ Gerenciar Perfil e Dados</h3>
+                <button class="btn btn-outline btn-icon" onclick="closeProfileSettingsModal()">✕</button>
+            </div>
+
+            <p style="font-size: 13px; color: var(--text-secondary); margin-top: -4px;">
+                Perfil ativo: <strong id="modal-profile-current-name" style="color: var(--color-primary);">Principal</strong>
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 5px;">
+                <!-- 1. Zerar Estatísticas de Desempenho (Aproveitamento, Streak, Horas, Metas) -->
+                <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                    <div>
+                        <strong style="font-size: 13px; color: var(--color-warning); display: block;">Zerar Estatísticas do Perfil</strong>
+                        <span style="font-size: 12px; color: var(--text-secondary);">Zera aproveitamento geral, streak, horas líquidas e metas batidas, mantendo suas matérias e assuntos cadastrados.</span>
+                    </div>
+                    <button class="btn btn-warning" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; font-weight: 700;" onclick="resetPerformanceStatsFromModal()">
+                        ↺ Zerar Métricas
+                    </button>
+                </div>
+
+                <!-- 2. Excluir Perfil Atual -->
+                <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                    <div>
+                        <strong style="font-size: 13px; color: var(--text-primary); display: block;">Excluir Este Perfil</strong>
+                        <span style="font-size: 12px; color: var(--text-secondary);">Apaga o perfil ativo, suas matérias e cronograma.</span>
+                    </div>
+                    <button class="btn btn-danger" style="font-size: 12px; padding: 6px 14px; white-space: nowrap;" onclick="deleteCurrentProfileFromModal()">
+                        🗑️ Excluir Perfil
+                    </button>
+                </div>
+
+                <!-- 3. Reset Geral / Limpar Tudo -->
+                <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                    <div>
+                        <strong style="font-size: 13px; color: #f87171; display: block;">Reset Total de Fábrica</strong>
+                        <span style="font-size: 12px; color: var(--text-secondary);">Apaga todos os perfis, matérias e histórico do navegador.</span>
+                    </div>
+                    <button class="btn btn-danger" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; background-color: #b91c1c;" onclick="resetAllApplicationDataFromModal()">
+                        ⚠️ Limpar Tudo
+                    </button>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                <button class="btn btn-outline" style="width: 100%;" onclick="closeProfileSettingsModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Configurações do Ciclo -->
+    <div id="modal-cycle-settings" class="modal-overlay">
+        <div class="modal-content" style="width: 580px; max-width: 95vw;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                <h3 style="margin: 0; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">⚙️ Configurações do Ciclo</h3>
+                <button class="btn btn-outline btn-icon" onclick="closeCycleSettingsModal()">✕</button>
+            </div>
+
+            <h4 style="font-size: 13px; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.5px; margin-top: 5px;">1. Carga Horária e Tempos por Bloco</h4>
+            <div class="cycle-settings-grid" style="margin-bottom: 12px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
+                <div>
+                    <label>Horas Semanais Totais</label>
+                    <input type="number" id="hours-per-week" value="28" min="1">
+                </div>
+                <div>
+                    <label>Duração Revisão (h)</label>
+                    <input type="number" id="cfg-hr-rev" value="0.5" step="0.5" min="0.25">
+                </div>
+                <div>
+                    <label>Duração Questões (h)</label>
+                    <input type="number" id="cfg-hr-que" value="1.0" step="0.5" min="0.5">
+                </div>
+                <div>
+                    <label>Fatiamento Máx Teoria (h)</label>
+                    <input type="number" id="cfg-hr-teo-slice" value="1.5" step="0.5" max="2.0" title="Blocos maiores que 1.5h são fatiados em dias diferentes para evitar fadiga">
+                </div>
+            </div>
+
+            <h4 style="font-size: 13px; text-transform: uppercase; color: var(--color-purple); letter-spacing: 0.5px;">2. Limite Máximo de Tarefas por Fase por Dia</h4>
+            <div class="cycle-settings-grid" style="margin-bottom: 16px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
+                <div>
+                    <label>Máx. Teoria / dia</label>
+                    <input type="number" id="cfg-max-teo-day" value="2" min="1" max="8">
+                </div>
+                <div>
+                    <label>Máx. Revisão / dia</label>
+                    <input type="number" id="cfg-max-rev-day" value="2" min="0" max="8">
+                </div>
+                <div>
+                    <label>Máx. Questões / dia</label>
+                    <input type="number" id="cfg-max-que-day" value="2" min="0" max="8">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-success" style="flex: 2;" onclick="saveCycleSettings()">✓ Salvar Configurações</button>
+                <button class="btn btn-outline" style="flex: 1;" onclick="closeCycleSettingsModal()">Fechar</button>
+            </div>
+
+            <div style="border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <strong style="color: var(--color-danger); font-size: 13px; display: block;">Apagar Ciclo Atual</strong>
+                    <span style="font-size: 12px; color: var(--text-secondary);">Remove o cronograma e o calendário gerado sem apagar suas matérias.</span>
+                </div>
+                <button class="btn btn-danger" onclick="deleteCurrentCycle()" style="font-size: 12px; padding: 7px 14px;">
+                    🗑️ Apagar Ciclo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Perguntas (Universal) -->
+    <div id="modal-questions" class="modal-overlay">
+        <div class="modal-content" id="question-modal-content">
+            <h3 style="color: var(--color-primary); margin-bottom: 5px;">Validação de Meta</h3>
+            <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 10px;">Você realizou questões agora nesta tarefa?</p>
+            <div id="q-step-1" style="display: flex; gap: 10px;">
+                <button class="btn btn-success" style="flex:1;" onclick="showQuestionInputs()">Sim, registrar questões</button>
+                <button class="btn btn-outline" style="flex:1;" onclick="skipQuestionsAndFinish()">Não, apenas concluir</button>
+            </div>
+            <div id="q-step-2" style="display: none; flex-direction: column; gap: 15px;">
+                <input type="number" id="q-input-total" placeholder="Total Resolvidas">
+                <input type="number" id="q-input-correct" placeholder="Total Acertos">
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" style="flex:1;" onclick="submitQuestionsAndFinish()">Salvar e Concluir</button>
+                    <button class="btn btn-outline" style="flex:1;" onclick="document.getElementById('modal-questions').style.display = 'none'">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // --- MOTOR DE DADOS RESILIENTE COM SUPORTE A FALLBACK ---
+        var currentProfileKey = 'Principal';
+        try {
+            currentProfileKey = localStorage.getItem('studyActiveProfileKey') || 'Principal';
+        } catch(e) {
+            currentProfileKey = 'Principal';
+        }
+        
+        function getDefaultAppData() {
+            return {
+                streak: 0, 
+                totalHours: 0.0, 
+                completedTasksCount: 0,
+                globalPerformance: { totalQuestions: 0, correctQuestions: 0 },
+                topicHistory: {}, 
+                subjects: [
+                    {
+                        id: generateId('sub'), name: "Direito Constitucional", weight: 4, color: "#3b82f6", hidden: false,
+                        topics: [
+                            { id: generateId('top'), name: "Teoria Geral dos Direitos Fundamentais", status: 'pending', rounds: 0, phases: ['Teoria', 'Revisão', 'Questões'], currentPhaseIdx: 0, qTotal: 0, qCorrect: 0, link: "", teoHours: 2.0 },
+                            { id: generateId('top'), name: "Remédios Constitucionais", status: 'pending', rounds: 0, phases: ['Teoria', 'Revisão', 'Questões'], currentPhaseIdx: 0, qTotal: 0, qCorrect: 0, link: "", teoHours: 2.5 }
+                        ]
+                    },
+                    {
+                        id: generateId('sub'), name: "Direito Administrativo", weight: 4, color: "#10b981", hidden: false,
+                        topics: [
+                            { id: generateId('top'), name: "Princípios da Administração Pública", status: 'pending', rounds: 0, phases: ['Teoria', 'Revisão', 'Questões'], currentPhaseIdx: 0, qTotal: 0, qCorrect: 0, link: "", teoHours: 2.0 },
+                            { id: generateId('top'), name: "Poderes Administrativos", status: 'pending', rounds: 0, phases: ['Teoria', 'Revisão', 'Questões'], currentPhaseIdx: 0, qTotal: 0, qCorrect: 0, link: "", teoHours: 3.0 }
+                        ]
+                    }
+                ], 
+                cycle: { 
+                    active: false, 
+                    currentCycleDayIndex: 0, 
+                    dateLabels: [], 
+                    completedDays: [], 
+                    days: [],
+                    startDate: null 
+                },
+                settings: {
+                    weeklyHours: 28,
+                    revDur: 0.5,
+                    queDur: 1.0,
+                    teoSlice: 1.5,
+                    maxTeoPerDay: 2,
+                    maxRevPerDay: 2,
+                    maxQuePerDay: 2
+                }
+            };
+        }
+
+        var appData = getDefaultAppData();
+        const dayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+        let pendingTaskObj = null;
+        let currentCustSubId = null; 
+        let currentCalWeekView = 0; 
+
+        // Cronômetro Líquido
+        let timerInterval = null;
+        let timerSeconds = 0;
+        let isTimerRunning = false;
+
+        function generateId(p) { return p + '_' + Math.random().toString(36).substr(2, 9); }
+        
+        function formatHours(h) {
+            if (!h || isNaN(h)) return "0h00m";
+            let hrs = Math.floor(h);
+            let mins = Math.round((h - hrs) * 60);
+            return `${hrs}h${mins > 0 ? (mins < 10 ? '0'+mins : mins)+'m' : '00m'}`;
+        }
+
+        // --- GESTÃO DE PERFIS & BACKUP JSON ---
+        function getProfilesList() {
+            try {
+                return JSON.parse(localStorage.getItem('studyProfilesList')) || ['Principal'];
+            } catch(e) {
+                return ['Principal'];
+            }
+        }
+
+        function saveProfilesList(list) {
+            try {
+                localStorage.setItem('studyProfilesList', JSON.stringify(list));
+            } catch(e) {}
+        }
+
+        function renderProfileSelector() {
+            const select = document.getElementById('profile-select');
+            if (!select) return;
+            const profiles = getProfilesList();
+            select.innerHTML = profiles.map(p => `<option value="${p}" ${p === currentProfileKey ? 'selected' : ''}>${p}</option>`).join('');
+        }
+
+        function createNewProfile() {
+            const name = prompt("Nome do novo perfil de estudos (ex: PC-AP, TJ, OAB):");
+            if (!name || !name.trim()) return;
+            const trimmed = name.trim();
+            const list = getProfilesList();
+            if (!list.includes(trimmed)) {
+                list.push(trimmed);
+                saveProfilesList(list);
+            }
+            switchProfile(trimmed);
+        }
+
+        function switchProfile(name) {
+            currentProfileKey = name;
+            try {
+                localStorage.setItem('studyActiveProfileKey', name);
+            } catch(e) {}
+            loadData();
+        }
+
+        function openProfileSettingsModal() {
+            const el = document.getElementById('modal-profile-current-name');
+            if (el) el.innerText = currentProfileKey;
+            const modal = document.getElementById('modal-profile-settings');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeProfileSettingsModal() {
+            const modal = document.getElementById('modal-profile-settings');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function resetPerformanceStatsFromModal() {
+            closeProfileSettingsModal();
+            resetPerformanceStats();
+        }
+
+        function resetPerformanceStats() {
+            if (!confirm("Deseja realmente zerar as estatísticas de desempenho deste perfil (Aproveitamento Geral, Sequência/Streak, Horas Líquidas e Metas Validadas)?\n\nSuas matérias e assuntos cadastrados NÃO serão apagados.")) {
+                return;
+            }
+
+            appData.streak = 0;
+            appData.totalHours = 0.0;
+            appData.completedTasksCount = 0;
+            appData.globalPerformance = { totalQuestions: 0, correctQuestions: 0 };
+            appData.topicHistory = {};
+
+            // Zera o histórico de questões de cada assunto cadastrado
+            if (Array.isArray(appData.subjects)) {
+                appData.subjects.forEach(sub => {
+                    if (Array.isArray(sub.topics)) {
+                        sub.topics.forEach(top => {
+                            top.qTotal = 0;
+                            top.qCorrect = 0;
+                            top.rounds = 0;
+                            top.currentPhaseIdx = 0;
+                            if (top.status === 'completed') top.status = 'pending';
+                        });
+                    }
+                });
+            }
+
+            // Desmarca tarefas concluídas no ciclo atual
+            if (appData.cycle && Array.isArray(appData.cycle.days)) {
+                appData.cycle.days.forEach(dayTasks => {
+                    if (Array.isArray(dayTasks)) {
+                        dayTasks.forEach(task => {
+                            task.done = false;
+                            delete task.completedAt;
+                            delete task.recordedQTotal;
+                            delete task.recordedQCorrect;
+                        });
+                    }
+                });
+                if (Array.isArray(appData.cycle.completedDays)) {
+                    appData.cycle.completedDays = appData.cycle.completedDays.map(() => false);
+                }
+                appData.cycle.currentCycleDayIndex = 0;
+            }
+
+            saveData();
+            checkOverdueStatus();
+            renderAll();
+            alert("Estatísticas de desempenho zeradas com sucesso! Seu aproveitamento, streak, horas e metas foram reiniciados mantendo suas disciplinas intactas.");
+        }
+
+        function deleteCurrentProfileFromModal() {
+            closeProfileSettingsModal();
+            deleteCurrentProfile();
+        }
+
+        function resetAllApplicationDataFromModal() {
+            closeProfileSettingsModal();
+            resetAllApplicationData();
+        }
+
+        function deleteCurrentProfile() {
+            const list = getProfilesList();
+            if (list.length <= 1) {
+                alert("Você possui apenas 1 perfil ativo. Não é possível excluir o único perfil existente. Crie outro perfil primeiro se desejar remover este.");
+                return;
+            }
+
+            if (!confirm(`Atenção: Tem certeza de que deseja excluir permanentemente o perfil "${currentProfileKey}" e todo o seu planejamento?`)) {
+                return;
+            }
+
+            try {
+                localStorage.removeItem(`studyPlannerData_${currentProfileKey}`);
+            } catch(e) {}
+
+            const newList = list.filter(p => p !== currentProfileKey);
+            saveProfilesList(newList);
+
+            currentProfileKey = newList[0];
+            try {
+                localStorage.setItem('studyActiveProfileKey', currentProfileKey);
+            } catch(e) {}
+            loadData();
+
+            alert(`Perfil excluído com sucesso! Agora você está no perfil "${currentProfileKey}".`);
+        }
+
+        function deleteCurrentCycle() {
+            if (!appData.cycle || !appData.cycle.active) {
+                alert("Não há nenhum ciclo ativo neste perfil para apagar.");
+                return;
+            }
+
+            if (!confirm("Tem certeza que deseja apagar o ciclo atual? As tarefas agendadas e o calendário serão resetados, mas suas matérias e histórico de questões serão mantidos.")) {
+                return;
+            }
+
+            appData.cycle = {
+                active: false,
+                currentCycleDayIndex: 0,
+                dateLabels: [],
+                completedDays: [],
+                days: [],
+                startDate: null
+            };
+
+            saveData();
+            closeCycleSettingsModal();
+            checkOverdueStatus();
+            renderAll();
+            alert("Ciclo apagado com sucesso! Agora você pode gerar um novo ciclo quando quiser.");
+        }
+
+        function resetAllApplicationData() {
+            if (!confirm("⚠️ ATENÇÃO: Esta ação é irreversível!\n\nIsso apagará TODOS os perfis, todas as matérias, questões registradas, histórico e ciclos salvos neste navegador.\n\nDeseja realmente continuar?")) {
+                return;
+            }
+
+            const confirmCode = prompt("Para confirmar a exclusão de TODOS os dados, digite LIMPAR abaixo:");
+            if (confirmCode !== 'LIMPAR') {
+                alert("Confirmação não coincidiu. Operação cancelada.");
+                return;
+            }
+
+            try {
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && (k.startsWith('studyPlannerData') || k === 'studyProfilesList' || k === 'studyActiveProfileKey' || k.startsWith('studyData_') || k === 'studyActiveProfile' || k === 'studyProfileList')) {
+                        keysToRemove.push(k);
+                    }
+                }
+                keysToRemove.forEach(k => localStorage.removeItem(k));
+            } catch(e) {}
+
+            currentProfileKey = 'Principal';
+            saveProfilesList(['Principal']);
+            try {
+                localStorage.setItem('studyActiveProfileKey', 'Principal');
+            } catch(e) {}
+            
+            appData = getDefaultAppData();
+            saveData();
+            loadData();
+
+            alert("Todos os dados foram excluídos e o sistema foi restaurado para o padrão inicial.");
+        }
+
+        function exportBackupJSON() {
+            const payload = {
+                profile: currentProfileKey,
+                exportDate: new Date().toISOString(),
+                data: appData
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup_estudos_${currentProfileKey}_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importBackupJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.data && parsed.data.subjects) {
+                        appData = parsed.data;
+                    } else if (parsed.subjects) {
+                        appData = parsed;
+                    } else {
+                        throw new Error("Formato inválido");
+                    }
+                    saveData();
+                    renderAll();
+                    alert("Backup restaurado com sucesso para o perfil atual!");
+                } catch(err) {
+                    alert("Erro ao ler o arquivo JSON de backup: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // --- CRONÔMETRO DE ESTUDO ---
+        function toggleTimer() {
+            if (isTimerRunning) {
+                clearInterval(timerInterval);
+                isTimerRunning = false;
+                const btn = document.getElementById('timer-btn-toggle');
+                if (btn) btn.innerText = '▶';
+            } else {
+                timerInterval = setInterval(() => {
+                    timerSeconds++;
+                    updateTimerUI();
+                }, 1000);
+                isTimerRunning = true;
+                const btn = document.getElementById('timer-btn-toggle');
+                if (btn) btn.innerText = '⏸';
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            timerSeconds = 0;
+            updateTimerUI();
+            const btn = document.getElementById('timer-btn-toggle');
+            if (btn) btn.innerText = '▶';
+        }
+
+        function updateTimerUI() {
+            const hrs = String(Math.floor(timerSeconds / 3600)).padStart(2, '0');
+            const mins = String(Math.floor((timerSeconds % 3600) / 60)).padStart(2, '0');
+            const secs = String(timerSeconds % 60).padStart(2, '0');
+            const disp = document.getElementById('timer-display');
+            if (disp) disp.innerText = `${hrs}:${mins}:${secs}`;
+        }
+
+        // --- INICIALIZAÇÃO DE DADOS COM RECUPERAÇÃO AUTOMÁTICA ---
+        function loadData() {
+            try {
+                currentProfileKey = localStorage.getItem('studyActiveProfileKey') || 'Principal';
+            } catch(e) {
+                currentProfileKey = 'Principal';
+            }
+
+            const storageKey = `studyPlannerData_${currentProfileKey}`;
+            let saved = null;
+            try {
+                saved = localStorage.getItem(storageKey);
+                if (!saved) {
+                    const legacyKeys = ['studyPlannerDataV18', 'studyData_Principal', 'studyPlannerData', 'studyData_default'];
+                    for (const lk of legacyKeys) {
+                        const legacyData = localStorage.getItem(lk);
+                        if (legacyData) {
+                            try {
+                                const parsed = JSON.parse(legacyData);
+                                if (parsed && (parsed.subjects || parsed.cycle)) {
+                                    saved = legacyData;
+                                    localStorage.setItem(storageKey, saved);
+                                    console.log(`Migrated legacy data from ${lk} to ${storageKey}`);
+                                    break;
+                                }
+                            } catch(err) {}
+                        }
+                    }
+                }
+            } catch(e) {
+                console.warn("Acesso ao localStorage restrito", e);
+            }
+
+            if (saved) {
+                try {
+                    appData = JSON.parse(saved);
+                } catch(e) {
+                    console.error("Falha ao analisar JSON salvo, usando padrão", e);
+                    appData = getDefaultAppData();
+                }
+            } else {
+                appData = getDefaultAppData();
+                saveData();
+            }
+
+            if (!appData || typeof appData !== 'object') appData = getDefaultAppData();
+            if (!Array.isArray(appData.subjects)) appData.subjects = [];
+            if (!appData.topicHistory || typeof appData.topicHistory !== 'object') appData.topicHistory = {};
+            if (!appData.cycle || typeof appData.cycle !== 'object') {
+                appData.cycle = { active: false, currentCycleDayIndex: 0, dateLabels: [], completedDays: [], days: [], startDate: null };
+            }
+            if (!Array.isArray(appData.cycle.days)) appData.cycle.days = [];
+            if (!Array.isArray(appData.cycle.dateLabels)) appData.cycle.dateLabels = [];
+            if (!Array.isArray(appData.cycle.completedDays)) appData.cycle.completedDays = [];
+
+            if (!appData.settings || typeof appData.settings !== 'object') {
+                appData.settings = { weeklyHours: 28, revDur: 0.5, queDur: 1.0, teoSlice: 1.5, maxTeoPerDay: 2, maxRevPerDay: 2, maxQuePerDay: 2 };
+            }
+
+            appData.subjects.forEach(s => {
+                if (!Array.isArray(s.topics)) s.topics = [];
+                s.topics.forEach(t => {
+                    if (!Array.isArray(t.phases)) t.phases = ['Teoria', 'Revisão', 'Questões'];
+                    if (t.currentPhaseIdx === undefined) t.currentPhaseIdx = 0;
+                    if (t.qTotal === undefined) t.qTotal = 0;
+                    if (t.qCorrect === undefined) t.qCorrect = 0;
+                    if (t.status === undefined) t.status = 'pending';
+                });
+            });
+
+            const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+            setVal('hours-per-week', appData.settings.weeklyHours || 28);
+            setVal('cfg-hr-rev', appData.settings.revDur || 0.5);
+            setVal('cfg-hr-que', appData.settings.queDur || 1.0);
+            setVal('cfg-hr-teo-slice', appData.settings.teoSlice || 1.5);
+            setVal('cfg-max-teo-day', appData.settings.maxTeoPerDay || 2);
+            setVal('cfg-max-rev-day', appData.settings.maxRevPerDay || 2);
+            setVal('cfg-max-que-day', appData.settings.maxQuePerDay || 2);
+
+            if (appData.cycle && appData.cycle.active) {
+                currentCalWeekView = Math.floor((appData.cycle.currentCycleDayIndex || 0) / 7);
+            }
+
+            renderProfileSelector();
+            checkOverdueStatus();
+            renderAll();
+        }
+
+        function saveData() {
+            try {
+                const storageKey = `studyPlannerData_${currentProfileKey}`;
+                localStorage.setItem(storageKey, JSON.stringify(appData));
+            } catch(e) {
+                console.warn("Erro ao gravar dados no localStorage", e);
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+            
+            const targetSection = document.getElementById(`view-${tabId}`);
+            if (targetSection) targetSection.classList.add('active');
+            
+            const tabs = document.querySelectorAll('.nav-tab');
+            tabs.forEach(tab => {
+                const attr = tab.getAttribute('onclick') || '';
+                if (attr.includes(`'${tabId}'`)) {
+                    tab.classList.add('active');
+                }
+            });
+
+            if (tabId === 'calendario') {
+                if (appData.cycle && appData.cycle.active) {
+                    currentCalWeekView = Math.floor((appData.cycle.currentCycleDayIndex || 0) / 7);
+                }
+                renderCalendar();
+            } else { 
+                renderAll(); 
+            }
+        }
+
+        // --- SISTEMA DE VERIFICAÇÃO DE ATRASO ---
+        function checkOverdueStatus() {
+            const banner = document.getElementById('late-warning-banner');
+            if (!banner) return;
+
+            if (!appData.cycle || !appData.cycle.active || !appData.cycle.startDate) {
+                banner.style.display = 'none';
+                return;
+            }
+
+            const activeIdx = appData.cycle.currentCycleDayIndex || 0;
+            if (activeIdx >= appData.cycle.days.length) {
+                banner.style.display = 'none';
+                return;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const start = new Date(appData.cycle.startDate);
+            start.setHours(0, 0, 0, 0);
+
+            const expectedDate = new Date(start);
+            expectedDate.setDate(start.getDate() + activeIdx);
+
+            if (today.getTime() > expectedDate.getTime()) {
+                banner.style.display = 'flex';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        function realignCycleToToday() {
+            if (!confirm("Isso ajustará as datas do cronograma restante a partir da data de hoje, mantendo todo o seu histórico já concluído. Deseja prosseguir?")) return;
+            
+            const now = new Date();
+            const activeIdx = appData.cycle.currentCycleDayIndex || 0;
+            
+            const newStart = new Date(now);
+            newStart.setDate(now.getDate() - activeIdx);
+            appData.cycle.startDate = newStart.toISOString();
+
+            for(let i = 0; i < appData.cycle.days.length; i++) {
+                let d = new Date(newStart);
+                d.setDate(newStart.getDate() + i);
+                appData.cycle.dateLabels[i] = `${dayNames[d.getDay()]}, ${d.toLocaleDateString('pt-BR').substring(0,5)}`;
+            }
+
+            saveData();
+            checkOverdueStatus();
+            renderAll();
+            alert("Datas do ciclo realinhadas para hoje com sucesso!");
+        }
+
+        function dismissLateBanner() {
+            const banner = document.getElementById('late-warning-banner');
+            if (banner) banner.style.display = 'none';
+        }
+
+        // --- PERSONALIZAÇÃO EM LOTE (MODAL GRANDE) ---
+        function openCustomizeModal(subId) {
+            currentCustSubId = subId;
+            const sub = appData.subjects.find(s => s.id === subId);
+            if (!sub) return;
+            const titleEl = document.getElementById('cust-title');
+            if (titleEl) titleEl.innerText = `Personalizar: ${sub.name}`;
+            const weightEl = document.getElementById('cust-sub-weight');
+            if (weightEl) weightEl.value = sub.weight || 3; 
+            const newTopEl = document.getElementById('cust-new-topic');
+            if (newTopEl) newTopEl.value = '';
+            renderCustomizeList();
+            const modal = document.getElementById('modal-customize');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function addTopicFromCust() {
+            const input = document.getElementById('cust-new-topic');
+            if (!input) return;
+            const val = input.value.trim();
+            if(!val) return;
+            const sub = appData.subjects.find(s => s.id === currentCustSubId);
+            if (!sub) return;
+            sub.topics.push({ 
+                id: generateId('top'), 
+                name: val, 
+                status: 'pending', 
+                rounds: 0, 
+                phases: ['Teoria', 'Revisão', 'Questões'], 
+                currentPhaseIdx: 0, 
+                qTotal: 0, 
+                qCorrect: 0, 
+                link: "", 
+                teoHours: 2.0 
+            });
+            input.value = '';
+            renderCustomizeList();
+        }
+
+        function removeTopicCust(topicId) {
+            if(!confirm("Remover este assunto?")) return;
+            const sub = appData.subjects.find(s => s.id === currentCustSubId);
+            if (!sub) return;
+            sub.topics = sub.topics.filter(t => t.id !== topicId);
+            renderCustomizeList();
+        }
+
+        function renderCustomizeList() {
+            const listContainer = document.getElementById('cust-topics-list');
+            if (!listContainer) return;
+            const sub = appData.subjects.find(s => s.id === currentCustSubId);
+            
+            if(!sub || !sub.topics || sub.topics.length === 0) {
+                listContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-secondary);">Nenhum assunto cadastrado ainda.</div>`;
+                return;
+            }
+
+            listContainer.innerHTML = sub.topics.map(t => {
+                const phases = t.phases || [];
+                const hasTeo = phases.includes('Teoria') ? 'checked' : '';
+                const hasRev = phases.includes('Revisão') ? 'checked' : '';
+                const hasQue = phases.includes('Questões') ? 'checked' : '';
+                
+                let rowClass = 'cust-topic-row';
+                if(t.status === 'unlisted') rowClass += ' unlisted';
+                else if(t.status === 'completed') rowClass += ' completed';
+                
+                return `
+                <div class="${rowClass}" data-id="${t.id}">
+                    <div class="cust-topic-name">${t.name}</div>
+                    <div class="cust-phases">
+                        <label><input type="checkbox" class="c-phase" value="Teoria" ${hasTeo} onchange="handleCustPhaseChange(this)"> Teoria</label>
+                        <label><input type="checkbox" class="c-phase" value="Revisão" ${hasRev} onchange="handleCustPhaseChange(this)"> Revisão</label>
+                        <label><input type="checkbox" class="c-phase" value="Questões" ${hasQue} onchange="handleCustPhaseChange(this)"> Questões</label>
+                    </div>
+                    <div class="cust-status-group">
+                        <div class="teo-input-wrapper">
+                            <span>Teoria (h):</span>
+                            <input type="number" class="teo-hrs-input" value="${t.teoHours || 2.0}" step="0.5" min="0.5" style="width: 55px; font-size: 11px; padding: 4px; background: var(--bg-main);">
+                        </div>
+                        <select class="status-select" style="background: var(--bg-main);" onchange="handleCustStatusChange(this)">
+                            <option value="pending" ${t.status==='pending'?'selected':''}>⏳ Pendente</option>
+                            <option value="completed" ${t.status==='completed'?'selected':''}>✅ Concluído</option>
+                            <option value="unlisted" ${t.status==='unlisted'?'selected':''}>⏸ Não List</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-outline btn-icon" onclick="removeTopicCust('${t.id}')" title="Excluir">✕</button>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function handleCustStatusChange(selectEl) {
+            const row = selectEl.closest('.cust-topic-row');
+            if (!row) return;
+            const checkboxes = row.querySelectorAll('.c-phase');
+            row.classList.remove('unlisted', 'completed');
+            
+            if (selectEl.value === 'unlisted') {
+                checkboxes.forEach(cb => cb.checked = false);
+                row.classList.add('unlisted');
+            } else if (selectEl.value === 'completed') {
+                row.classList.add('completed');
+            }
+        }
+
+        function handleCustPhaseChange(cbEl) {
+            const row = cbEl.closest('.cust-topic-row');
+            if (!row) return;
+            const selectEl = row.querySelector('.status-select');
+            const checkboxes = row.querySelectorAll('.c-phase');
+            const anyChecked = Array.from(checkboxes).some(c => c.checked);
+
+            if (cbEl.checked && selectEl && selectEl.value === 'unlisted') {
+                selectEl.value = 'pending';
+                row.classList.remove('unlisted', 'completed');
+            } else if (!anyChecked && selectEl.value !== 'unlisted') {
+                selectEl.value = 'unlisted';
+                row.classList.remove('completed');
+                row.classList.add('unlisted');
+            }
+        }
+
+        function toggleAllCustPhase(phaseVal) {
+            const checkboxes = document.querySelectorAll(`.cust-topic-row .c-phase[value="${phaseVal}"]`);
+            if(checkboxes.length === 0) return;
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => { cb.checked = !allChecked; handleCustPhaseChange(cb); });
+        }
+
+        function saveCustomization() {
+            const sub = appData.subjects.find(s => s.id === currentCustSubId);
+            if (!sub) return;
+            const rows = document.querySelectorAll('.cust-topic-row');
+            
+            const weightEl = document.getElementById('cust-sub-weight');
+            sub.weight = parseInt(weightEl ? weightEl.value : 3) || 3;
+            
+            rows.forEach(row => {
+                const tId = row.getAttribute('data-id');
+                const topic = sub.topics.find(t => t.id === tId);
+                if (!topic) return;
+
+                const checkedBoxes = Array.from(row.querySelectorAll('.c-phase:checked')).map(cb => cb.value);
+                const statusEl = row.querySelector('.status-select');
+                const teoEl = row.querySelector('.teo-hrs-input');
+                
+                let newStatus = statusEl ? statusEl.value : 'pending';
+                let newTeoHrs = teoEl ? (parseFloat(teoEl.value) || 2.0) : 2.0;
+                
+                if(checkedBoxes.length === 0 && newStatus !== 'completed') newStatus = 'unlisted';
+
+                topic.phases = checkedBoxes;
+                topic.teoHours = newTeoHrs;
+
+                if(topic.status !== newStatus) {
+                    topic.status = newStatus;
+                    if(newStatus === 'pending') topic.currentPhaseIdx = 0; 
+                }
+                if (topic.phases.length > 0 && topic.currentPhaseIdx >= topic.phases.length) {
+                    topic.currentPhaseIdx = topic.phases.length - 1;
+                }
+            });
+
+            const modal = document.getElementById('modal-customize');
+            if (modal) modal.style.display = 'none';
+            saveData(); 
+            renderAll();
+        }
+
+        // --- DISCIPLINAS & CARDS ---
+        function openSubjectModal() { 
+            const nameEl = document.getElementById('new-subj-name');
+            if (nameEl) nameEl.value = '';
+            const weightEl = document.getElementById('new-subj-weight');
+            if (weightEl) weightEl.value = 3;
+            const modal = document.getElementById('modal-disciplina');
+            if (modal) modal.style.display = 'flex'; 
+        }
+
+        function saveNewSubject() {
+            const nameEl = document.getElementById('new-subj-name');
+            const name = nameEl ? nameEl.value.trim() : '';
+            if (!name) return alert("Digite o nome da disciplina.");
+            const weightEl = document.getElementById('new-subj-weight');
+            const weight = parseInt(weightEl ? weightEl.value : 3) || 3;
+            const colorEl = document.getElementById('new-subj-color');
+            const color = colorEl ? colorEl.value : '#3b82f6';
+
+            appData.subjects.push({ 
+                id: generateId('sub'), 
+                name, 
+                weight, 
+                color, 
+                hidden: false,
+                topics: [] 
+            });
+
+            const modal = document.getElementById('modal-disciplina');
+            if (modal) modal.style.display = 'none'; 
+            saveData(); 
+            renderAll();
+        }
+
+        function removeSubject(id) { 
+            if(confirm("Remover esta disciplina e todos os seus assuntos?")) { 
+                appData.subjects = appData.subjects.filter(s => s.id !== id); 
+                saveData(); 
+                renderAll(); 
+            } 
+        }
+
+        function toggleHideSubject(subId) {
+            const sub = appData.subjects.find(s => s.id === subId);
+            if (!sub) return;
+            sub.hidden = !sub.hidden;
+            saveData();
+            renderAll();
+        }
+
+        function renderSubjects() {
+            const container = document.getElementById('subjects-container');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            if (appData.subjects.length === 0) {
+                container.innerHTML = `<div style="grid-column: 1/-1; padding: 40px; text-align: center; color: var(--text-secondary);">Nenhuma matéria cadastrada. Clique no botão acima para adicionar a primeira.</div>`;
+                return;
+            }
+
+            appData.subjects.forEach(sub => {
+                const topics = sub.topics || [];
+                const total = topics.length;
+                const completed = topics.filter(t => t.status === 'completed').length;
+                const pending = topics.filter(t => t.status === 'pending').length;
+                const isHidden = !!sub.hidden;
+                
+                container.innerHTML += `
+                    <div class="subject-card" style="border-top: 4px solid ${sub.color}; ${isHidden ? 'opacity: 0.6; border-style: dashed;' : ''}">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                            <div>
+                                <div class="subject-card-title" style="display: flex; align-items: center; gap: 6px;">
+                                    ${sub.name}
+                                </div>
+                                ${isHidden ? '<span style="font-size: 11px; background: rgba(245, 158, 11, 0.15); color: var(--color-warning); border: 1px solid var(--color-warning); padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; margin-top: 4px;">⏸ Oculta / Fora do Ciclo</span>' : ''}
+                            </div>
+                            <span style="font-size: 11px; background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px; font-weight: bold; color: var(--text-secondary); white-space: nowrap;">Peso ${sub.weight}</span>
+                        </div>
+                        <div class="subject-meta">
+                            Assuntos Cadastrados: <strong>${total}</strong><br>
+                            Pendentes no Ciclo: <strong>${pending}</strong><br>
+                            Concluídos / Revisados: <strong>${completed}</strong>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: auto; flex-wrap: wrap;">
+                            <button class="btn btn-primary" onclick="openCustomizeModal('${sub.id}')" style="flex: 2;">Personalizar</button>
+                            <button class="btn ${isHidden ? 'btn-success' : 'btn-outline'}" onclick="toggleHideSubject('${sub.id}')" style="flex: 1.5; font-size: 12px; padding: 6px 10px;" title="${isHidden ? 'Ativar matéria no ciclo' : 'Ocultar matéria do ciclo'}">
+                                ${isHidden ? '▶ Ativar' : '⏸ Ocultar'}
+                            </button>
+                            <button class="btn btn-danger" onclick="removeSubject('${sub.id}')" style="padding: 6px 12px;" title="Excluir disciplina">Remover</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- ABA QUESTÕES COM ACCORDION E SETA MINIMALISTA ---
+        function renderQuestionsTab() {
+            const container = document.getElementById('questions-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (appData.subjects.length === 0) {
+                container.innerHTML = `<div style="grid-column: 1/-1; padding: 40px; text-align: center; color: var(--text-secondary);">Cadastre matérias na aba 'Disciplinas & Fases' para registrar questões.</div>`;
+                return;
+            }
+
+            appData.subjects.forEach(sub => {
+                const topics = sub.topics || [];
+                let topicsHtml = topics.map(t => {
+                    const qTot = t.qTotal || 0;
+                    const qCor = t.qCorrect || 0;
+                    let perc = qTot > 0 ? Math.round((qCor / qTot) * 100) : 0;
+                    return `
+                    <details class="q-accordion">
+                        <summary>
+                            <div class="q-accordion-title">
+                                <span class="color-dot" style="background-color: ${sub.color}"></span>
+                                <span>${t.name}</span>
+                            </div>
+                            <div class="q-arrow-badge">
+                                <span style="font-size:12px; font-weight:700; color:${perc >= 70 ? 'var(--color-success)' : (qTot > 0 ? 'var(--color-warning)' : 'var(--text-secondary)')};">
+                                    ${qTot > 0 ? perc + '%' : 'Sem dados'}
+                                </span>
+                                <span class="q-arrow">▼</span>
+                            </div>
+                        </summary>
+                        <div class="q-body">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                <div>
+                                    <label style="font-size:11px; color:var(--text-secondary); margin-bottom:4px;">Total Resolvidas</label>
+                                    <input type="number" id="qtot_${t.id}" value="${qTot}" placeholder="Ex: 50" min="0">
+                                </div>
+                                <div>
+                                    <label style="font-size:11px; color:var(--text-secondary); margin-bottom:4px;">Acertos</label>
+                                    <input type="number" id="qcor_${t.id}" value="${qCor}" placeholder="Ex: 42" min="0">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size:11px; color:var(--text-secondary); margin-bottom:4px;">Link Caderno / Filtro (QConcursos, TEC, Gran, PDF)</label>
+                                <div style="display:flex; gap:8px;">
+                                    <input type="text" id="qlnk_${t.id}" value="${t.link || ''}" style="flex:1;" placeholder="https://...">
+                                    <button class="btn btn-outline btn-icon" onclick="openCadernoLink('${t.id}')" title="Abrir Link">🔗</button>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline" style="width:100%; padding:8px; margin-top:4px;" onclick="saveQStats('${sub.id}','${t.id}')">Salvar Alterações</button>
+                        </div>
+                    </details>
+                    `;
+                }).join('');
+
+                container.innerHTML += `
+                    <div class="subject-card" style="border-top:4px solid ${sub.color}">
+                        <h3>${sub.name}</h3>
+                        ${topicsHtml || '<div style="color:var(--text-secondary); font-size:13px; padding:10px 0;">Nenhum assunto adicionado ainda.</div>'}
+                    </div>
+                `;
+            });
+        }
+
+        function openCadernoLink(topicId) {
+            const input = document.getElementById(`qlnk_${topicId}`);
+            const raw = input ? input.value.trim() : '';
+            if (!raw) return alert("Nenhum link cadastrado para este assunto.");
+            const url = (raw.startsWith('http://') || raw.startsWith('https://')) ? raw : `https://${raw}`;
+            window.open(url, '_blank');
+        }
+
+        function saveQStats(subId, topicId) {
+            const sub = appData.subjects.find(s => s.id === subId);
+            if (!sub) return;
+            const topic = sub.topics.find(t => t.id === topicId);
+            if (!topic) return;
+
+            const totEl = document.getElementById(`qtot_${topicId}`);
+            const corEl = document.getElementById(`qcor_${topicId}`);
+            const lnkEl = document.getElementById(`qlnk_${topicId}`);
+
+            topic.qTotal = parseInt(totEl ? totEl.value : 0) || 0;
+            topic.qCorrect = parseInt(corEl ? corEl.value : 0) || 0;
+            topic.link = lnkEl ? lnkEl.value.trim() : '';
+            
+            if (topic.qCorrect > topic.qTotal) {
+                alert("Atenção: Os acertos não podem ultrapassar o total de questões.");
+                return;
+            }
+
+            saveData(); 
+            renderAll(); 
+            alert("Estatísticas e link salvos com sucesso!");
+        }
+
+        // --- SISTEMA TAREFA EXTRA ---
+        function openExtraTaskModal() {
+            const subSelect = document.getElementById('extra-sub');
+            if (!subSelect) return;
+            subSelect.innerHTML = '<option value="">Selecione uma disciplina...</option>';
+            appData.subjects.forEach(sub => {
+                subSelect.innerHTML += `<option value="${sub.id}">${sub.name}${sub.hidden ? ' (Oculta)' : ''}</option>`;
+            });
+            
+            const topicSelect = document.getElementById('extra-topic');
+            if (topicSelect) topicSelect.innerHTML = '<option value="">Selecione a disciplina primeiro</option>';
+            
+            const timeEl = document.getElementById('extra-time');
+            if (timeEl) timeEl.value = '1.0';
+            const qTot = document.getElementById('extra-q-tot');
+            if (qTot) qTot.value = '';
+            const qCor = document.getElementById('extra-q-cor');
+            if (qCor) qCor.value = '';
+
+            const modal = document.getElementById('modal-extra-task');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeExtraTaskModal() {
+            const modal = document.getElementById('modal-extra-task');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function updateExtraTaskTopics() {
+            const subSelect = document.getElementById('extra-sub');
+            const subId = subSelect ? subSelect.value : '';
+            const topicSelect = document.getElementById('extra-topic');
+            if (!topicSelect) return;
+            topicSelect.innerHTML = '';
+            
+            if (!subId) {
+                topicSelect.innerHTML = '<option value="">Selecione a disciplina primeiro</option>';
+                return;
+            }
+            
+            const sub = appData.subjects.find(s => s.id === subId);
+            if(!sub || !sub.topics || sub.topics.length === 0) {
+                topicSelect.innerHTML = '<option value="">Nenhum assunto nesta disciplina</option>';
+            } else {
+                sub.topics.forEach(top => {
+                    topicSelect.innerHTML += `<option value="${top.id}">${top.name}</option>`;
+                });
+            }
+        }
+
+        function saveExtraTask() {
+            const subSelect = document.getElementById('extra-sub');
+            const topSelect = document.getElementById('extra-topic');
+            const phaseSelect = document.getElementById('extra-phase');
+            const timeEl = document.getElementById('extra-time');
+            const qTotEl = document.getElementById('extra-q-tot');
+            const qCorEl = document.getElementById('extra-q-cor');
+
+            const subId = subSelect ? subSelect.value : '';
+            const topicId = topSelect ? topSelect.value : '';
+            const phase = phaseSelect ? phaseSelect.value : 'Teoria';
+            const time = parseFloat(timeEl ? timeEl.value : 1.0) || 1.0;
+            const qTot = parseInt(qTotEl ? qTotEl.value : 0) || 0;
+            const qCor = parseInt(qCorEl ? qCorEl.value : 0) || 0;
+
+            if(!subId || !topicId) return alert("Selecione a disciplina e o assunto.");
+            if(time > 1.5) return alert("Tarefas extras não devem exceder 1,5h (90 min) de acordo com o padrão do ciclo.");
+            if(qCor > qTot) return alert("Acertos não podem ser maiores que o total de questões.");
+
+            const sub = appData.subjects.find(s => s.id === subId);
+            const topic = sub ? sub.topics.find(t => t.id === topicId) : null;
+            if (!sub || !topic) return alert("Erro ao identificar matéria/assunto.");
+
+            const activeIdx = appData.cycle.currentCycleDayIndex || 0;
+            if (!Array.isArray(appData.cycle.days[activeIdx])) {
+                appData.cycle.days[activeIdx] = [];
+            }
+
+            const newTask = {
+                id: generateId('task'),
+                subId: sub.id, 
+                topicId: topic.id, 
+                subjectName: sub.name, 
+                topic: topic.name, 
+                phase: phase, 
+                color: sub.color,
+                done: false, 
+                durationNum: time, 
+                durationStr: formatHours(time),
+                prefilledQTotal: qTot, 
+                prefilledQCorrect: qCor,
+                isLastPart: true
+            };
+
+            appData.cycle.days[activeIdx].push(newTask);
+            saveData();
+            closeExtraTaskModal();
+            renderAll();
+            alert("Tarefa Extra adicionada com sucesso ao seu dia ativo!");
+        }
+
+        // --- CONCLUSÃO E CHECK DE TAREFA COM VÍNCULO DIRETO ---
+        function updateTopicHistoryOnTaskChange(topicId) {
+            let latestTime = 0;
+            if (appData.cycle && Array.isArray(appData.cycle.days)) {
+                appData.cycle.days.forEach(dayTasks => {
+                    if (Array.isArray(dayTasks)) {
+                        dayTasks.forEach(t => {
+                            if (t.topicId === topicId && t.done && t.completedAt) {
+                                if (t.completedAt > latestTime) {
+                                    latestTime = t.completedAt;
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+            if (latestTime > 0) {
+                appData.topicHistory[topicId] = latestTime;
+            } else {
+                delete appData.topicHistory[topicId];
+            }
+        }
+
+        function toggleTaskDone(dayIndex, taskId) {
+            if (appData.cycle.completedDays && appData.cycle.completedDays[dayIndex]) return; 
+            const dayTasks = appData.cycle.days[dayIndex];
+            if (!Array.isArray(dayTasks)) return;
+            const task = dayTasks.find(t => t.id === taskId);
+            if(!task) return;
+
+            if (task.done) { 
+                task.done = false;
+                appData.totalHours = Math.max(0, appData.totalHours - (task.durationNum || 0));
+                appData.completedTasksCount = Math.max(0, appData.completedTasksCount - 1);
+                
+                const sub = appData.subjects.find(s => s.id === task.subId);
+                const targetTopic = sub ? sub.topics.find(t => t.id === task.topicId) : null;
+                
+                if (targetTopic) {
+                    if (task.recordedQTotal) {
+                        targetTopic.qTotal = Math.max(0, (targetTopic.qTotal || 0) - task.recordedQTotal);
+                        targetTopic.qCorrect = Math.max(0, (targetTopic.qCorrect || 0) - task.recordedQCorrect);
+                        delete task.recordedQTotal;
+                        delete task.recordedQCorrect;
+                    }
+                    
+                    if (task.isLastPart !== false) {
+                        if (targetTopic.currentPhaseIdx > 0) targetTopic.currentPhaseIdx--;
+                        else if (targetTopic.status === 'completed' && targetTopic.rounds > 0) {
+                            targetTopic.status = 'pending'; targetTopic.rounds--;
+                            targetTopic.currentPhaseIdx = targetTopic.phases.length - 1;
+                        }
+                    }
+                }
+
+                delete task.completedAt;
+                updateTopicHistoryOnTaskChange(task.topicId);
+
+                saveData(); 
+                renderAll();
+            } else {
+                pendingTaskObj = task; 
+                const qTot = document.getElementById('q-input-total');
+                if (qTot) qTot.value = task.prefilledQTotal || '';
+                const qCor = document.getElementById('q-input-correct');
+                if (qCor) qCor.value = task.prefilledQCorrect || '';
+                
+                const step1 = document.getElementById('q-step-1');
+                if (step1) step1.style.display = 'flex';
+                const step2 = document.getElementById('q-step-2');
+                if (step2) step2.style.display = 'none';
+                const modal = document.getElementById('modal-questions');
+                if (modal) modal.style.display = 'flex';
+            }
+        }
+
+        function showQuestionInputs() { 
+            const s1 = document.getElementById('q-step-1');
+            if (s1) s1.style.display = 'none'; 
+            const s2 = document.getElementById('q-step-2');
+            if (s2) s2.style.display = 'flex'; 
+        }
+
+        function skipQuestionsAndFinish() { 
+            finalizeTaskData(0, 0); 
+            const modal = document.getElementById('modal-questions');
+            if (modal) modal.style.display = 'none'; 
+        }
+
+        function submitQuestionsAndFinish() {
+            const totEl = document.getElementById('q-input-total');
+            const corEl = document.getElementById('q-input-correct');
+            const total = parseInt(totEl ? totEl.value : 0) || 0;
+            const correct = parseInt(corEl ? corEl.value : 0) || 0;
+            if (correct > total) return alert("Acertos não podem ser maiores que o total!");
+            finalizeTaskData(total, correct);
+            const modal = document.getElementById('modal-questions');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function finalizeTaskData(qTotal, qCorrect) {
+            const task = pendingTaskObj;
+            if (!task) return;
+            task.done = true;
+            task.completedAt = Date.now();
+            task.recordedQTotal = qTotal;
+            task.recordedQCorrect = qCorrect;
+
+            appData.totalHours += (task.durationNum || 0); 
+            appData.completedTasksCount++;
+            appData.topicHistory[task.topicId] = task.completedAt; 
+            
+            const sub = appData.subjects.find(s => s.id === task.subId);
+            const top = sub ? sub.topics.find(t => t.id === task.topicId) : null;
+            
+            if (top) {
+                top.qTotal = (top.qTotal || 0) + qTotal; 
+                top.qCorrect = (top.qCorrect || 0) + qCorrect;
+                
+                if (task.isLastPart !== false) {
+                    top.currentPhaseIdx = (top.currentPhaseIdx || 0) + 1;
+                    if (top.currentPhaseIdx >= top.phases.length) {
+                        top.rounds = (top.rounds || 0) + 1; 
+                        top.status = 'completed'; 
+                        top.currentPhaseIdx = 0; 
+                    }
+                }
+            }
+            saveData(); 
+            renderAll();
+        }
+
+        function commitTodayProgress() {
+            const activeIdx = appData.cycle.currentCycleDayIndex || 0;
+            if (!appData.cycle.completedDays) appData.cycle.completedDays = [];
+            appData.cycle.completedDays[activeIdx] = true;
+            appData.streak++; 
+            appData.cycle.currentCycleDayIndex = activeIdx + 1;
+            saveData(); 
+            checkOverdueStatus();
+            renderAll(); 
+            window.scrollTo(0, 0);
+        }
+
+        // --- GERAÇÃO AVANÇADA DE CICLO COM LIMITES DIÁRIOS POR FASE ---
+        function generateMacroCycle() {
+            if (appData.subjects.length === 0) return alert("Cadastre disciplinas antes de gerar um ciclo.");
+            if (appData.cycle.active && !confirm("Atenção: Isso gerará um NOVO cronograma completo de estudos substituindo o atual. Deseja prosseguir?")) return;
+            
+            const weeklyHoursEl = document.getElementById('hours-per-week');
+            const revDurEl = document.getElementById('cfg-hr-rev');
+            const queDurEl = document.getElementById('cfg-hr-que');
+            const teoSliceEl = document.getElementById('cfg-hr-teo-slice');
+            const maxTeoEl = document.getElementById('cfg-max-teo-day');
+            const maxRevEl = document.getElementById('cfg-max-rev-day');
+            const maxQueEl = document.getElementById('cfg-max-que-day');
+
+            const totalWeeklyHours = parseFloat(weeklyHoursEl ? weeklyHoursEl.value : 28) || 28;
+            const dailyTargetHours = totalWeeklyHours / 7;
+            
+            const durRevisao = parseFloat(revDurEl ? revDurEl.value : 0.5) || 0.5;
+            const durQuestoes = parseFloat(queDurEl ? queDurEl.value : 1.0) || 1.0;
+            const maxSlice = parseFloat(teoSliceEl ? teoSliceEl.value : 1.5) || 1.5;
+
+            const maxTeoDay = parseInt(maxTeoEl ? maxTeoEl.value : 2) || 2;
+            const maxRevDay = parseInt(maxRevEl ? maxRevEl.value : 2) || 2;
+            const maxQueDay = parseInt(maxQueEl ? maxQueEl.value : 2) || 2;
+
+            appData.settings.weeklyHours = totalWeeklyHours;
+            appData.settings.revDur = durRevisao;
+            appData.settings.queDur = durQuestoes;
+            appData.settings.teoSlice = maxSlice;
+            appData.settings.maxTeoPerDay = maxTeoDay;
+            appData.settings.maxRevPerDay = maxRevDay;
+            appData.settings.maxQuePerDay = maxQueDay;
+
+            function getPhaseDur(phaseName, topTeoHrs) {
+                if (phaseName === 'Teoria') return topTeoHrs || 2.0; 
+                if (phaseName === 'Revisão') return durRevisao;
+                if (phaseName === 'Questões') return durQuestoes;
+                return 1.0;
+            }
+
+            let simTopics = [];
+            const now = Date.now();
+            
+            appData.subjects.forEach(sub => {
+                if (sub.hidden) return;
+                const topics = sub.topics || [];
+                topics.forEach(top => {
+                    const phases = top.phases || ['Teoria', 'Revisão', 'Questões'];
+                    const curIdx = top.currentPhaseIdx || 0;
+                    if (top.status === 'pending' && phases.length > 0 && curIdx < phases.length) {
+                        const lastSeen = appData.topicHistory[top.id] || 0;
+                        let stalenessBonus = lastSeen > 0 ? Math.min(((now - lastSeen) / 86400000) * 0.15, 4) : 1; 
+                        
+                        simTopics.push({
+                            subId: sub.id, 
+                            topicId: top.id, 
+                            subName: sub.name, 
+                            topicName: top.name, 
+                            color: sub.color, 
+                            weight: sub.weight || 3, 
+                            bonus: stalenessBonus,
+                            phases: phases, 
+                            simIdx: curIdx, 
+                            teoHours: top.teoHours || 2.0,
+                            remainingDur: 0, 
+                            currentPart: 1, 
+                            totalParts: 0
+                        });
+                    }
+                });
+            });
+
+            if(simTopics.length === 0) return alert("Não há assuntos marcados como Pendentes em disciplinas ativas para gerar o ciclo! Verifique na aba 'Disciplinas & Fases'.");
+
+            let allDays = [[]];
+            let currentDayIndex = 0;
+            let currentDayHours = 0;
+            let loopSafety = 0;
+
+            while(simTopics.some(t => t.simIdx < t.phases.length) && loopSafety < 5000) {
+                loopSafety++;
+                
+                const currentDayTasks = allDays[currentDayIndex];
+                
+                let countTeo = currentDayTasks.filter(task => task.phase.startsWith('Teoria')).length;
+                let countRev = currentDayTasks.filter(task => task.phase.startsWith('Revisão')).length;
+                let countQue = currentDayTasks.filter(task => task.phase.startsWith('Questões')).length;
+
+                let validTopics = simTopics.filter(t => {
+                    if (t.simIdx >= t.phases.length) return false;
+                    if (currentDayTasks.some(task => task.topicId === t.topicId)) return false;
+
+                    let nextPhase = t.phases[t.simIdx];
+                    if (nextPhase === 'Teoria' && countTeo >= maxTeoDay) return false;
+                    if (nextPhase === 'Revisão' && countRev >= maxRevDay) return false;
+                    if (nextPhase === 'Questões' && countQue >= maxQueDay) return false;
+
+                    return true;
+                });
+
+                if (validTopics.length === 0) {
+                    currentDayIndex++; 
+                    allDays.push([]); 
+                    currentDayHours = 0;
+                    continue;
+                }
+
+                validTopics.forEach(t => {
+                    let phaseBonus = 0;
+                    if (t.phases[t.simIdx] === 'Teoria') phaseBonus = 2;
+                    else if (t.phases[t.simIdx] === 'Revisão') phaseBonus = 1;
+                    t.score = t.weight + t.bonus + phaseBonus + (Math.random() * 0.4); 
+                });
+
+                validTopics.sort((a, b) => b.score - a.score);
+                let picked = validTopics[0];
+                let phaseName = picked.phases[picked.simIdx];
+                
+                if (!picked.remainingDur) {
+                    picked.remainingDur = getPhaseDur(phaseName, picked.teoHours);
+                    picked.totalParts = Math.ceil(picked.remainingDur / maxSlice);
+                    picked.currentPart = 1;
+                }
+
+                let durNum = Math.min(picked.remainingDur, maxSlice);
+                let displayPhaseName = picked.totalParts > 1 ? `${phaseName} (P${picked.currentPart}/${picked.totalParts})` : phaseName;
+
+                picked.remainingDur -= durNum;
+                let isLastPart = (picked.remainingDur <= 0.01);
+
+                allDays[currentDayIndex].push({
+                    id: generateId('task'), 
+                    subId: picked.subId, 
+                    topicId: picked.topicId, 
+                    subjectName: picked.subName, 
+                    topic: picked.topicName, 
+                    phase: displayPhaseName, 
+                    color: picked.color, 
+                    done: false, 
+                    durationNum: durNum, 
+                    durationStr: formatHours(durNum),
+                    isLastPart: isLastPart
+                });
+
+                currentDayHours += durNum;
+
+                if (isLastPart) {
+                    picked.simIdx++;
+                    picked.remainingDur = 0;
+                    picked.totalParts = 0;
+                } else {
+                    picked.currentPart++;
+                }
+
+                if (currentDayHours >= dailyTargetHours) {
+                    currentDayIndex++; 
+                    allDays.push([]); 
+                    currentDayHours = 0;
+                }
+            }
+
+            while (allDays.length % 7 !== 0) { allDays.push([]); }
+
+            const startDateObj = new Date();
+            appData.cycle.startDate = startDateObj.toISOString();
+            appData.cycle.dateLabels = [];
+            
+            for(let i = 0; i < allDays.length; i++) {
+                let d = new Date(startDateObj); 
+                d.setDate(startDateObj.getDate() + i);
+                appData.cycle.dateLabels.push(`${dayNames[d.getDay()]}, ${d.toLocaleDateString('pt-BR').substring(0,5)}`);
+            }
+
+            appData.cycle.days = allDays;
+            appData.cycle.completedDays = Array(allDays.length).fill(false);
+            appData.cycle.currentCycleDayIndex = 0; 
+            appData.cycle.active = true;
+            currentCalWeekView = 0;
+            
+            saveData(); 
+            checkOverdueStatus();
+            renderAll(); 
+            switchTab('dashboard');
+            alert(`Ciclo gerado com sucesso! Foram planejados ${allDays.length} dias de estudo com respeito aos seus limites diários.`);
+        }
+
+        // --- DASHBOARD E RENDERIZADORES ---
+        function renderTodayTasks() {
+            const tbody = document.getElementById('today-tasks-body');
+            const confirmBox = document.getElementById('confirmation-box');
+            const dayCompletedBox = document.getElementById('day-completed-box');
+            const btnExtra = document.getElementById('btn-extra-task');
+            
+            if (!tbody) return;
+            tbody.innerHTML = ''; 
+            if (confirmBox) confirmBox.style.display = 'none'; 
+            if (dayCompletedBox) dayCompletedBox.style.display = 'none';
+            const tableCont = document.getElementById('tasks-table-container');
+            if (tableCont) tableCont.style.display = 'block';
+
+            if (!appData.cycle || !appData.cycle.active) { 
+                const nameEl = document.getElementById('today-name');
+                if (nameEl) nameEl.innerText = "Nenhum Ciclo Ativo"; 
+                if (btnExtra) btnExtra.style.display = 'none';
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 30px; color: var(--text-secondary);">
+                            <div style="font-size: 15px; margin-bottom: 10px;">Nenhum ciclo de estudos está ativo no momento.</div>
+                            <button class="btn btn-primary" onclick="switchTab('calendario')">Ir para Ciclo & Calendário para Gerar</button>
+                        </td>
+                    </tr>
+                `;
+                return; 
+            }
+
+            const activeIdx = appData.cycle.currentCycleDayIndex || 0;
+            
+            if (activeIdx >= appData.cycle.days.length) { 
+                if (tableCont) tableCont.style.display = 'none'; 
+                if (dayCompletedBox) dayCompletedBox.style.display = 'flex'; 
+                if (btnExtra) btnExtra.style.display = 'none';
+                return; 
+            }
+
+            if (btnExtra) btnExtra.style.display = 'block';
+            const nameEl = document.getElementById('today-name');
+            if (nameEl) nameEl.innerText = appData.cycle.dateLabels[activeIdx] || `Dia ${activeIdx + 1}`;
+            
+            const currentTasks = appData.cycle.days[activeIdx] || [];
+            
+            if(currentTasks.length === 0) { 
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--color-success); padding: 24px;">Dia de descanso/revisão livre planejado! Clique no botão abaixo para avançar ao próximo dia.</td></tr>`;
+                if (confirmBox) confirmBox.style.display = 'flex'; 
+                return; 
+            }
+
+            let allChecked = true;
+            currentTasks.forEach((task, index) => {
+                if (!task.done) allChecked = false;
+                tbody.innerHTML += `
+                    <tr class="${task.done ? 'staged' : ''}">
+                        <td><span class="color-dot" style="background-color: ${task.color}"></span>${index + 1}</td>
+                        <td style="font-weight: 600;">${task.subjectName}</td>
+                        <td><span class="badge-fase">${task.phase}</span></td>
+                        <td>${task.topic}</td>
+                        <td><span class="duration-tag">${task.durationStr}</span></td>
+                        <td>
+                            <input type="checkbox" class="big-chk" ${task.done ? 'checked' : ''} onchange="toggleTaskDone(${activeIdx}, '${task.id}')">
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            if (allChecked && confirmBox) confirmBox.style.display = 'flex';
+        }
+
+        function updateDashboardStats() {
+            const streakEl = document.getElementById('streak-val');
+            if (streakEl) streakEl.innerText = `${appData.streak || 0} dias`;
+            const hoursEl = document.getElementById('hours-val');
+            if (hoursEl) hoursEl.innerText = formatHours(appData.totalHours);
+            const topicsEl = document.getElementById('topics-val');
+            if (topicsEl) topicsEl.innerText = appData.completedTasksCount || 0;
+            
+            let totQ = 0, corQ = 0;
+            appData.subjects.forEach(s => {
+                const topics = s.topics || [];
+                topics.forEach(t => { 
+                    totQ += (t.qTotal || 0); 
+                    corQ += (t.qCorrect || 0); 
+                });
+            });
+            const perfEl = document.getElementById('perf-val');
+            if (perfEl) perfEl.innerText = totQ > 0 ? (corQ/totQ*100).toFixed(1).replace('.',',') + '%' : '0,0%';
+
+            const progressContainer = document.getElementById('progress-container');
+            if (!progressContainer) return;
+            progressContainer.innerHTML = '';
+            
+            if (appData.subjects.length === 0) {
+                progressContainer.innerHTML = '<div style="color:var(--text-secondary); font-size:13px;">Cadastre matérias para visualizar o avanço do edital.</div>';
+                return;
+            }
+
+            appData.subjects.forEach(sub => {
+                const topics = sub.topics || [];
+                let totalPhases = 0; 
+                let completedPhases = 0;
+                topics.forEach(t => {
+                    const phases = t.phases || [];
+                    if (t.status !== 'unlisted' && phases.length > 0) {
+                        totalPhases += phases.length;
+                        if (t.status === 'completed') completedPhases += phases.length;
+                        else if (t.status === 'pending') completedPhases += (t.currentPhaseIdx || 0);
+                    }
+                });
+
+                let perc = totalPhases === 0 ? 0 : Math.round((completedPhases / totalPhases) * 100);
+                if (totalPhases > 0) {
+                    progressContainer.innerHTML += `
+                        <div class="progress-item" style="${sub.hidden ? 'opacity: 0.55;' : ''}">
+                            <div class="progress-header"><span style="border-left: 3px solid ${sub.color}; padding-left: 8px; font-weight:500;">${sub.name}${sub.hidden ? ' <small style="color: var(--color-warning); font-size: 11px;">(Oculta)</small>' : ''}</span><span>${perc}%</span></div>
+                            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${perc}%; background-color: ${sub.color};"></div></div>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        // --- ATIVIDADE DE MANUTENÇÃO INTELIGENTE (PRIORIZAÇÃO 2 VERTENTES) ---
+        function calculateMaintenancePriority(days, qTotal, qCorrect) {
+            if (days < 1) return null;
+
+            const perc = qTotal > 0 ? Math.round((qCorrect / qTotal) * 100) : null;
+            
+            let timeScore = Math.min(100, days * 4.5 + 10);
+            let accScore = 45;
+            let reason = 'Revisão Periódica';
+
+            if (perc !== null) {
+                if (perc < 50) {
+                    accScore = 95;
+                    reason = `🚨 Acertos Críticos (${perc}%)`;
+                } else if (perc < 65) {
+                    accScore = 70;
+                    reason = `⚠️ Desempenho Baixo (${perc}%)`;
+                } else if (perc < 80) {
+                    accScore = 40;
+                    reason = `📘 Rendimento Regular (${perc}%)`;
+                } else {
+                    accScore = 15;
+                    reason = `⭐ Bom Rendimento (${perc}%)`;
+                }
+            } else {
+                reason = '📝 Sem questões resolvidas';
+            }
+
+            if (days >= 15) {
+                reason = `⏳ Ausência Crítica (${days}d sem ver)`;
+            } else if (days >= 7 && (perc === null || perc >= 65)) {
+                reason = `📅 Revisão Semanal (${days}d sem ver)`;
+            } else if (days === 1 && (perc === null || perc >= 65)) {
+                reason = '🔄 Revisão Ciclo 24h';
+            }
+
+            let totalScore = (timeScore * 0.5) + (accScore * 0.5);
+
+            let level, badge, color, bg, border;
+
+            if (totalScore >= 70 || days >= 15 || (perc !== null && perc < 50 && days >= 2)) {
+                level = 'Máxima';
+                badge = '🔴 Máxima';
+                color = '#ef4444';
+                bg = 'rgba(239, 68, 68, 0.15)';
+                border = '#ef4444';
+            } else if (totalScore >= 50 || days >= 7 || (perc !== null && perc < 65 && days >= 2)) {
+                level = 'Alta';
+                badge = '🟠 Alta';
+                color = '#f97316';
+                bg = 'rgba(249, 115, 22, 0.15)';
+                border = '#f97316';
+            } else if (totalScore >= 32 || days >= 3) {
+                level = 'Média';
+                badge = '🟡 Média';
+                color = '#f59e0b';
+                bg = 'rgba(245, 158, 11, 0.15)';
+                border = '#f59e0b';
+            } else {
+                level = 'Baixa';
+                badge = '🟢 Baixa';
+                color = '#10b981';
+                bg = 'rgba(16, 185, 129, 0.15)';
+                border = '#10b981';
+            }
+
+            return {
+                level, badge, color, bg, border, reason, totalScore, perc, days
+            };
+        }
+
+        function renderMaintenance() {
+            const cont = document.getElementById('maintenance-container');
+            if (!cont) return;
+            cont.innerHTML = '';
+            
+            let list = [];
+            const now = Date.now();
+
+            appData.subjects.forEach(s => {
+                const topics = s.topics || [];
+                topics.forEach(t => {
+                    const lastSeen = appData.topicHistory ? appData.topicHistory[t.id] : null;
+                    if (lastSeen) {
+                        const days = Math.floor((now - lastSeen) / 86400000);
+                        const p = calculateMaintenancePriority(days, t.qTotal || 0, t.qCorrect || 0);
+                        if (p) {
+                            list.push({
+                                subName: s.name,
+                                subColor: s.color,
+                                topicName: t.name,
+                                qTotal: t.qTotal || 0,
+                                qCorrect: t.qCorrect || 0,
+                                priority: p
+                            });
+                        }
+                    }
+                });
+            });
+
+            if (list.length === 0) {
+                cont.innerHTML = `
+                    <div style="background: rgba(16, 185, 129, 0.05); border: 1px dashed var(--color-success); border-radius: 8px; padding: 18px; text-align: center; color: var(--text-secondary); font-size: 13px;">
+                        <span style="font-size: 20px; display: block; margin-bottom: 6px;">✨</span>
+                        <strong>Tudo em dia!</strong><br>
+                        Nenhum assunto acumulado para manutenção. Assuntos concluídos hoje só entrarão na fila de revisão a partir de amanhã (+24h).
+                    </div>
+                `;
+                return;
+            }
+
+            list.sort((a, b) => b.priority.totalScore - a.priority.totalScore);
+
+            cont.innerHTML = list.slice(0, 6).map(item => {
+                const p = item.priority;
+                const perfText = p.perc !== null ? `${p.perc}% acertos (${item.qCorrect}/${item.qTotal})` : 'Sem questões';
+                return `
+                    <div class="maintenance-item" style="border-left: 4px solid ${p.border}; background-color: var(--bg-card); padding: 12px 14px; border-radius: 8px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                            <div>
+                                <span style="font-size: 11px; font-weight: 700; color: ${item.subColor || 'var(--color-primary)'}; text-transform: uppercase;">${item.subName}</span>
+                                <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-top: 2px;">${item.topicName}</div>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; background: ${p.bg}; color: ${p.color}; border: 1px solid ${p.border}; white-space: nowrap;">
+                                ${p.badge}
+                            </span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-secondary); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px; flex-wrap: wrap; gap: 6px;">
+                            <div>
+                                <span>⏳ ${p.days} ${p.days === 1 ? 'dia' : 'dias'} sem ver</span> • 
+                                <span style="font-weight: 600; color: ${p.perc !== null ? (p.perc >= 70 ? 'var(--color-success)' : 'var(--color-warning)') : 'inherit'};">
+                                    🎯 ${perfText}
+                                </span>
+                            </div>
+                            <span style="font-weight: 600; color: ${p.color};">
+                                ${p.reason}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- NAVEGAÇÃO SEMANAL DO CALENDÁRIO ---
+        function nextCalWeek() {
+            const totalWeeks = Math.ceil((appData.cycle.days ? appData.cycle.days.length : 0) / 7);
+            if (currentCalWeekView < totalWeeks - 1) { 
+                currentCalWeekView++; 
+                renderCalendar(); 
+            }
+        }
+
+        function prevCalWeek() {
+            if (currentCalWeekView > 0) { 
+                currentCalWeekView--; 
+                renderCalendar(); 
+            }
+        }
+
+        // --- MODAL DE CONFIGURAÇÕES DO CICLO ---
+        function openCycleSettingsModal() {
+            if (appData.settings) {
+                const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+                setVal('hours-per-week', appData.settings.weeklyHours || 28);
+                setVal('cfg-hr-rev', appData.settings.revDur || 0.5);
+                setVal('cfg-hr-que', appData.settings.queDur || 1.0);
+                setVal('cfg-hr-teo-slice', appData.settings.teoSlice || 1.5);
+                setVal('cfg-max-teo-day', appData.settings.maxTeoPerDay || 2);
+                setVal('cfg-max-rev-day', appData.settings.maxRevPerDay || 2);
+                setVal('cfg-max-que-day', appData.settings.maxQuePerDay || 2);
+            }
+            const modal = document.getElementById('modal-cycle-settings');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeCycleSettingsModal() {
+            const modal = document.getElementById('modal-cycle-settings');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function saveCycleSettings() {
+            const weeklyHoursEl = document.getElementById('hours-per-week');
+            const revDurEl = document.getElementById('cfg-hr-rev');
+            const queDurEl = document.getElementById('cfg-hr-que');
+            const teoSliceEl = document.getElementById('cfg-hr-teo-slice');
+            const maxTeoEl = document.getElementById('cfg-max-teo-day');
+            const maxRevEl = document.getElementById('cfg-max-rev-day');
+            const maxQueEl = document.getElementById('cfg-max-que-day');
+
+            const weeklyHours = parseFloat(weeklyHoursEl ? weeklyHoursEl.value : 28) || 28;
+            const revDur = parseFloat(revDurEl ? revDurEl.value : 0.5) || 0.5;
+            const queDur = parseFloat(queDurEl ? queDurEl.value : 1.0) || 1.0;
+            const teoSlice = parseFloat(teoSliceEl ? teoSliceEl.value : 1.5) || 1.5;
+            const maxTeoPerDay = parseInt(maxTeoEl ? maxTeoEl.value : 2) || 2;
+            const maxRevPerDay = parseInt(maxRevEl ? maxRevEl.value : 2) || 2;
+            const maxQuePerDay = parseInt(maxQueEl ? maxQueEl.value : 2) || 2;
+
+            appData.settings = {
+                weeklyHours, revDur, queDur, teoSlice,
+                maxTeoPerDay, maxRevPerDay, maxQuePerDay
+            };
+
+            saveData();
+            closeCycleSettingsModal();
+            alert("Configurações do ciclo salvas com sucesso!");
+        }
+
+        // --- SISTEMA DRAG AND DROP DE TAREFAS NO CALENDÁRIO ---
+        let draggedTaskData = null;
+
+        function handleTaskDragStart(e, dayIndex, taskId) {
+            draggedTaskData = { dayIndex, taskId };
+            if (e.dataTransfer) {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', JSON.stringify(draggedTaskData));
+            }
+            
+            setTimeout(() => {
+                const el = document.getElementById(`task-card-${taskId}`);
+                if (el) el.classList.add('dragging');
+            }, 0);
+        }
+
+        function handleTaskDragEnd(e) {
+            const draggingEls = document.querySelectorAll('.task-card.dragging');
+            draggingEls.forEach(el => el.classList.remove('dragging'));
+            const cols = document.querySelectorAll('.day-column.drag-over');
+            cols.forEach(col => col.classList.remove('drag-over'));
+            draggedTaskData = null;
+        }
+
+        function handleDayDragOver(e, targetDayIndex) {
+            if (appData.cycle.completedDays && appData.cycle.completedDays[targetDayIndex]) {
+                return;
+            }
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+            const col = document.getElementById(`day-col-${targetDayIndex}`);
+            if (col && !col.classList.contains('drag-over')) {
+                col.classList.add('drag-over');
+            }
+        }
+
+        function handleDayDragLeave(e, targetDayIndex) {
+            const col = document.getElementById(`day-col-${targetDayIndex}`);
+            if (col && !col.contains(e.relatedTarget)) {
+                col.classList.remove('drag-over');
+            }
+        }
+
+        function handleDayDrop(e, targetDayIndex) {
+            e.preventDefault();
+            const col = document.getElementById(`day-col-${targetDayIndex}`);
+            if (col) col.classList.remove('drag-over');
+
+            if (!draggedTaskData && e.dataTransfer) {
+                try {
+                    const str = e.dataTransfer.getData('text/plain');
+                    if (str) draggedTaskData = JSON.parse(str);
+                } catch(err) {}
+            }
+
+            if (!draggedTaskData) return;
+
+            const fromDayIndex = draggedTaskData.dayIndex;
+            const taskId = draggedTaskData.taskId;
+            draggedTaskData = null;
+
+            if (fromDayIndex === targetDayIndex) return;
+
+            if (appData.cycle.completedDays && appData.cycle.completedDays[targetDayIndex]) {
+                alert("Este dia já foi concluído e não pode receber novas tarefas.");
+                return;
+            }
+
+            const fromTasks = appData.cycle.days[fromDayIndex];
+            if (!Array.isArray(fromTasks)) return;
+            const taskIdx = fromTasks.findIndex(t => t.id === taskId);
+            if (taskIdx === -1) return;
+
+            const [movedTask] = fromTasks.splice(taskIdx, 1);
+            if (!Array.isArray(appData.cycle.days[targetDayIndex])) {
+                appData.cycle.days[targetDayIndex] = [];
+            }
+            appData.cycle.days[targetDayIndex].push(movedTask);
+
+            saveData();
+            renderAll();
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            const nav = document.getElementById('calendar-nav');
+            if (!grid) return;
+            grid.innerHTML = '';
+            
+            if(!appData.cycle || !appData.cycle.active || !Array.isArray(appData.cycle.days) || appData.cycle.days.length === 0) {
+                if (nav) nav.style.display = 'none'; 
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; padding: 50px 20px; text-align: center; color: var(--text-secondary); background: rgba(0,0,0,0.15); border: 1px dashed var(--border-color); border-radius: 12px;">
+                        <span style="font-size: 32px; display: block; margin-bottom: 10px;">📅</span>
+                        <h4 style="font-size: 16px; color: var(--text-primary); margin-bottom: 8px;">Nenhum Ciclo Gerado</h4>
+                        <p style="font-size: 13px; margin-bottom: 16px;">Clique no botão acima "<strong>⚡ Gerar Ciclo a partir de Hoje</strong>" para montar o cronograma semanal automaticamente.</p>
+                        <button class="btn btn-primary" onclick="generateMacroCycle()">⚡ Gerar Ciclo Agora</button>
+                    </div>
+                `;
+                return;
+            }
+
+            const totalWeeks = Math.ceil(appData.cycle.days.length / 7);
+            if (nav) nav.style.display = 'flex';
+            const weekLabel = document.getElementById('cal-week-label');
+            if (weekLabel) weekLabel.innerText = `Semana ${currentCalWeekView + 1} de ${totalWeeks}`;
+
+            const startIdx = currentCalWeekView * 7;
+            const endIdx = startIdx + 7;
+
+            for(let dIdx = startIdx; dIdx < endIdx; dIdx++) {
+                if(dIdx >= appData.cycle.days.length) break;
+
+                const tasks = appData.cycle.days[dIdx] || [];
+                const isActive = dIdx === appData.cycle.currentCycleDayIndex;
+                const isLocked = appData.cycle.completedDays && appData.cycle.completedDays[dIdx];
+                
+                let headCls = "day-header"; 
+                if(isLocked) headCls += " completed-day"; 
+                else if(isActive) headCls += " today";
+                
+                let dayTotalHours = tasks.reduce((acc, t) => acc + (t.durationNum || 1), 0);
+                
+                let cards = tasks.map(t => {
+                    const isDraggable = !isLocked && !t.done;
+                    return `
+                    <div class="task-card ${isLocked ? 'locked' : (t.done ? 'staged' : '')}" 
+                         id="task-card-${t.id}"
+                         style="${!t.done && !isLocked ? `border-left: 4px solid ${t.color}` : ''}"
+                         draggable="${isDraggable ? 'true' : 'false'}"
+                         ondragstart="handleTaskDragStart(event, ${dIdx}, '${t.id}')"
+                         ondragend="handleTaskDragEnd(event)">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <div>
+                                <div style="font-weight:bold; color:${t.color}; font-size:12px; display:flex; align-items:center; gap:4px;">
+                                    ${isDraggable ? '<span style="cursor:grab; opacity:0.6; font-size:10px;" title="Arraste para mover de dia">⋮⋮</span>' : ''}
+                                    ${t.subjectName}
+                                </div>
+                                <div style="font-size:11px; color:var(--text-secondary); margin-top:2px;">${t.topic}</div>
+                            </div>
+                            <input type="checkbox" class="big-chk" ${t.done ? 'checked' : ''} ${isLocked ? 'disabled' : ''} onchange="toggleTaskDone(${dIdx}, '${t.id}')">
+                        </div>
+                        <div style="display:flex; gap: 6px; align-items:center;">
+                            <span class="badge-fase">${t.phase}</span>
+                            <span class="duration-tag">${t.durationStr}</span>
+                        </div>
+                    </div>
+                `;
+                }).join('');
+
+                grid.innerHTML += `
+                    <div class="day-column" 
+                         id="day-col-${dIdx}"
+                         ondragover="handleDayDragOver(event, ${dIdx})"
+                         ondragleave="handleDayDragLeave(event, ${dIdx})"
+                         ondrop="handleDayDrop(event, ${dIdx})">
+                        <div class="${headCls}">
+                            ${appData.cycle.dateLabels[dIdx]}<br>
+                            <span style="font-size:11px; font-weight:normal; opacity: 0.85;">Carga: ${formatHours(dayTotalHours)}</span>
+                        </div>
+                        ${cards || '<div style="font-size:11px; text-align:center; color:var(--text-secondary); padding:16px; border: 1px dashed rgba(255,255,255,0.05); border-radius:8px;">Livre</div>'}
+                    </div>
+                `;
+            }
+        }
+
+        function renderAll() { 
+            updateDashboardStats(); 
+            renderTodayTasks(); 
+            renderMaintenance(); 
+            renderSubjects(); 
+            renderQuestionsTab(); 
+            renderCalendar(); 
+        }
+
+        // Execução imediata e garantida no carregamento da página
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadData);
+        } else {
+            loadData();
+        }
+    </script>
+<script type="module" src="/src/firebase-sync.js"></script>
+</body>
+</html>
