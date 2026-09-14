@@ -3,16 +3,16 @@ import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "firebase/firestor
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "firebase/auth";
 
 const firebaseConfig = {
-    projectId: "skillful-city-gdtd0",
-    appId: "1:592040270794:web:8e358807458fe99c4f8d33",
-    apiKey: "AIzaSyDCoLljzm4d2xGhCp0XS5_Rjqbxogxx9bU",
-    authDomain: "skillful-city-gdtd0.firebaseapp.com",
-    storageBucket: "skillful-city-gdtd0.firebasestorage.app",
-    messagingSenderId: "592040270794"
+    apiKey: "AIzaSyDz26lj6FlSmHuPdDM23YJrtJ1rvxED7m8",
+    authDomain: "plataformadeestudo-e44a9.firebaseapp.com",
+    projectId: "plataformadeestudo-e44a9",
+    storageBucket: "plataformadeestudo-e44a9.firebasestorage.app",
+    messagingSenderId: "266137178422",
+    appId: "1:266137178422:web:1fe43fdd2624409b986397"
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app, "ai-studio-localhostrunner-1dbcde54-78c8-47a9-bd9c-98bd98e9eacb");
+const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
