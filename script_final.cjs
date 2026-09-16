@@ -1,575 +1,4 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StudyPlanner PRO - Organizador Inteligente de Ciclo</title>
-    <style>
-        :root {
-            --bg-main: #131318; --bg-panel: #1e1e26; --bg-card: #272732; --bg-table-row: #23232c;
-            --text-primary: #f3f4f6; --text-secondary: #9ca3af; --border-color: #383846;
-            --color-primary: #3b82f6; --color-success: #10b981; --color-danger: #ef4444;
-            --color-purple: #8b5cf6; --color-warning: #f59e0b;
-            --color-blue-gradient: linear-gradient(135deg, #0284c7, #38bdf8);
-        }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: var(--bg-main); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column; }
-
-        header { display: flex; justify-content: space-between; align-items: center; padding: 16px 36px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-panel); flex-wrap: wrap; gap: 16px; position: sticky; top: 0; z-index: 100;}
-        .logo { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; min-width: max-content; }
-        .nav-tabs { display: flex; gap: 8px; min-width: max-content; }
-        .nav-tab { color: var(--text-secondary); cursor: pointer; padding: 8px 14px; border-radius: 6px; transition: all 0.2s; font-weight: 500; font-size: 14px; user-select: none; }
-        .nav-tab:hover { color: var(--text-primary); background-color: rgba(255, 255, 255, 0.03); }
-        .nav-tab.active { color: var(--text-primary); background-color: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); }
-
-        .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .profile-select-wrap { display: flex; align-items: center; gap: 6px; background: var(--bg-card); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); }
-        .profile-select-wrap select { background: transparent; border: none; padding: 4px 8px; font-size: 13px; font-weight: 600; color: var(--text-primary); cursor: pointer; }
-
-        main { padding: 30px 40px; max-width: 1440px; margin: 0 auto; width: 100%; flex: 1; }
-        .view-section { display: none; animation: fadeIn 0.3s ease; }
-        .view-section.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-
-        h2 { font-size: 22px; margin-bottom: 20px; font-weight: 600; }
-        h3 { font-size: 18px; margin-bottom: 16px; font-weight: 600; color: var(--text-primary); }
-
-        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s; color: white; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; user-select: none; }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
-        .btn:active { transform: translateY(0); }
-        .btn-primary { background-color: var(--color-primary); }
-        .btn-success { background-color: var(--color-success); }
-        .btn-danger { background-color: var(--color-danger); }
-        .btn-warning { background-color: var(--color-warning); color: #000; }
-        .btn-outline { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-primary); }
-        .btn-outline:hover { background-color: rgba(255,255,255,0.05); }
-        .btn-icon { padding: 8px 12px; font-size: 13px; }
-
-        input, select { background-color: var(--bg-main); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 14px; border-radius: 6px; outline: none; font-size: 13px;}
-        input:focus, select:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
-
-        /* Banner de Atraso */
-        .late-banner { background-color: rgba(239, 68, 68, 0.12); border: 1px solid var(--color-danger); color: #fca5a5; padding: 16px 20px; border-radius: 10px; margin-bottom: 24px; display: none; align-items: center; justify-content: space-between; gap: 16px; }
-        .late-banner-info { display: flex; align-items: center; gap: 12px; font-size: 14px; }
-        .late-banner-actions { display: flex; gap: 10px; }
-
-        .panel { background-color: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
-        .dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
-        .stats-header { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
-        .stat-card { background-color: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; }
-        .stat-card.blue-card { background: var(--color-blue-gradient); border: none; color: white; }
-        .stat-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px; }
-        .stat-value { font-size: 30px; font-weight: 700; }
-
-        .tasks-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
-        .tasks-table th { padding: 12px 16px; border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-weight: 500; font-size: 12px; text-transform: uppercase; }
-        .tasks-table td { padding: 14px 16px; border-bottom: 1px solid var(--border-color); background-color: var(--bg-panel); transition: background-color 0.2s; }
-        .tasks-table tr:nth-child(even) td { background-color: var(--bg-table-row); }
-        .tasks-table tr.staged td { background-color: rgba(16, 185, 129, 0.06); }
-        .color-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; vertical-align: middle; }
-
-        .progress-list { display: flex; flex-direction: column; gap: 16px; }
-        .progress-item { display: flex; flex-direction: column; gap: 8px; }
-        .progress-header { display: flex; justify-content: space-between; font-size: 14px; }
-        .progress-bar-bg { width: 100%; height: 7px; background-color: var(--bg-main); border-radius: 4px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
-        
-        /* Cards de Manutenção Inteligente */
-        .maintenance-item { background-color: var(--bg-card); border-radius: 8px; margin-bottom: 10px; font-size: 13px; transition: transform 0.15s; }
-        .maintenance-item:hover { transform: translateX(2px); }
-
-        /* CARDS DE DISCIPLINAS */
-        .controls-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 14px; }
-        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
-        .subject-card { background-color: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-        .subject-card-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
-        .subject-meta { font-size: 13px; color: var(--text-secondary); line-height: 1.8; }
-        .subject-meta strong { color: var(--text-primary); }
-
-        /* ACCORDION MINIMALISTA PARA QUESTÕES COM SETA */
-        .q-accordion { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; margin-bottom: 10px; transition: border-color 0.2s; }
-        .q-accordion:hover { border-color: rgba(59, 130, 246, 0.4); }
-        .q-accordion summary { padding: 12px 16px; cursor: pointer; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; user-select: none; list-style: none; }
-        .q-accordion summary::-webkit-details-marker { display: none; }
-        .q-accordion-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-right: 10px; }
-        .q-arrow-badge { display: flex; align-items: center; gap: 10px; }
-        .q-arrow { font-size: 12px; transition: transform 0.25s ease; color: var(--text-secondary); display: inline-block; }
-        .q-accordion[open] .q-arrow { transform: rotate(180deg); color: var(--color-primary); }
-        .q-body { padding: 16px; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 12px; background-color: rgba(0,0,0,0.15); animation: fadeIn 0.2s ease; }
-
-        /* Modais */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background-color: var(--bg-panel); padding: 26px; border-radius: 12px; width: 440px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 16px; animation: fadeIn 0.2s ease; }
-        .modal-content.large { width: 940px; max-width: 95vw; max-height: 90vh; overflow: hidden; }
-
-        .cust-list-container { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; padding-right: 10px; margin-top: 10px; max-height: 52vh; }
-        .cust-topic-row.dragging { opacity: 0.5; box-shadow: 0 5px 15px rgba(0,0,0,0.3); transform: scale(0.98); border-color: var(--color-primary); z-index: 10; }
-        .drag-handle { cursor: grab; padding: 0 10px; color: var(--text-secondary); font-size: 16px; user-select: none; }
-        .drag-handle:active { cursor: grabbing; }
-        .cust-topic-row { display: flex; align-items: center; gap: 12px; padding: 12px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; }
-        .cust-topic-row.unlisted, .cust-topic-row.completed { opacity: 0.45; background-color: rgba(0,0,0,0.2); }
-        .cust-topic-name { flex: 1.5; font-size: 13px; font-weight: 500; }
-        .cust-phases { display: flex; gap: 10px; flex: 1.6; justify-content: center; }
-        .cust-phases label { display: flex; align-items: center; gap: 5px; font-size: 12px; cursor: pointer; }
-        .cust-status-group { flex: 1.5; display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
-        .cust-status-group select { width: 110px; font-size: 11px; padding: 6px; font-weight: 600; }
-        .teo-input-wrapper { display: flex; align-items: center; gap: 4px; }
-        .teo-input-wrapper span { font-size: 11px; color: var(--text-secondary); }
-
-        /* Calendário Integrado e Drag & Drop */
-        .calendar-wrapper { display: flex; flex-direction: column; gap: 20px; }
-        .calendar-nav { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 14px 20px; border-radius: 8px; border: 1px solid var(--border-color); }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 14px; align-items: start; overflow-x: auto; }
-        
-        .day-column { display: flex; flex-direction: column; gap: 12px; min-width: 150px; padding: 6px; border-radius: 10px; transition: background-color 0.2s, border-color 0.2s; border: 2px dashed transparent; }
-        .day-column.drag-over { border-color: var(--color-primary); background-color: rgba(59, 130, 246, 0.1); }
-        .task-card[draggable="true"] { cursor: grab; user-select: none; }
-        .task-card.dragging { opacity: 0.4; transform: scale(0.96); border-color: var(--color-primary); }
-
-        .day-header { background-color: var(--bg-card); padding: 12px; text-align: center; border-radius: 8px; border: 1px solid var(--border-color); font-weight: 600; font-size: 13px; line-height: 1.4; }
-        .day-header.today { background-color: rgba(59, 130, 246, 0.12); border-color: var(--color-primary); color: var(--color-primary); }
-        .day-header.completed-day { border-color: var(--color-success); color: var(--color-success); }
-        
-        .task-card { background-color: #1a1a24; border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
-        .task-card.staged { border-color: var(--color-success); background-color: rgba(16, 185, 129, 0.05); }
-        .task-card.locked { opacity: 0.4; text-decoration: line-through; }
-        .badge-fase { font-size: 11px; background: rgba(139, 92, 246, 0.2); color: var(--color-purple); padding: 3px 6px; border-radius: 4px; font-weight: 600; }
-        .duration-tag { font-size: 11px; color: var(--text-secondary); background: var(--bg-panel); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); }
-
-        input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; border: 2px solid var(--border-color); border-radius: 4px; background-color: var(--bg-main); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
-        input[type="checkbox"]:checked { background-color: var(--color-success); border-color: var(--color-success); }
-        input[type="checkbox"]:checked::after { content: "✓"; color: white; font-weight: bold; font-size: 12px; }
-        input[type="checkbox"]:disabled { opacity: 0.4; cursor: not-allowed; }
-        .big-chk { width: 22px !important; height: 22px !important; }
-        .big-chk:checked::after { font-size: 14px !important; }
-
-        .confirmation-box { margin-top: 20px; padding: 24px; border-radius: 12px; background-color: rgba(16, 185, 129, 0.05); border: 1px solid var(--color-success); display: none; flex-direction: column; align-items: center; gap: 16px; }
-        .day-completed-state { padding: 30px; text-align: center; background-color: rgba(59, 130, 246, 0.05); border: 1px dashed var(--color-primary); border-radius: 12px; display: none; flex-direction: column; gap: 12px; }
-
-        /* Configurações Globais e Limites Diários */
-        .cycle-settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
-        .cycle-settings-grid > div { display: flex; flex-direction: column; gap: 6px; }
-        .cycle-settings-grid label { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; }
-
-        /* Cronômetro Flutuante / Integrado */
-        .timer-widget { display: flex; align-items: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 4px 12px; border-radius: 20px; font-size: 13px; }
-        .timer-digits { font-family: monospace; font-size: 15px; font-weight: 700; color: var(--color-primary); min-width: 65px; text-align: center; }
-    </style>
-  
-<script type="module" src="./src/firebase-sync.js"></script></head>
-<body>
-
-    <header>
-        <div class="logo">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-primary)"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-            StudyPlanner PRO
-        </div>
-        <div class="nav-tabs">
-            <div class="nav-tab active" onclick="switchTab('dashboard')">Dashboard</div>
-            <div class="nav-tab" onclick="switchTab('disciplinas')">Disciplinas & Fases</div>
-            <div class="nav-tab" onclick="switchTab('questoes')">Questões</div>
-            <div class="nav-tab" onclick="switchTab('calendario')">Ciclo & Calendário</div>
-        </div>
-        <div class="header-actions">
-            <!-- Cronômetro de Estudo Líquido -->
-            <div class="timer-widget">
-                <span id="timer-icon">⏱️</span>
-                <span class="timer-digits" id="timer-display">00:00:00</span>
-                <button class="btn btn-outline btn-icon" id="timer-btn-toggle" onclick="toggleTimer()" title="Iniciar/Pausar">▶</button>
-                <button class="btn btn-outline btn-icon" onclick="resetTimer()" title="Zerar">↺</button>
-            </div>
-
-            <!-- Gerenciamento de Perfil com Salvamento Seguro -->
-            <div class="profile-select-wrap">
-                <span style="font-size:12px; color:var(--text-secondary);">Perfil:</span>
-                <select id="profile-select" onchange="switchProfile(this.value)"></select>
-            </div>
-            <button class="btn btn-outline btn-icon" onclick="createNewProfile()" title="Novo Perfil">+ Perfil</button>
-            <button class="btn btn-outline btn-icon" onclick="openProfileSettingsModal()" title="Configurações e Exclusão de Perfis">⚙️</button>
-            <button class="btn btn-outline btn-icon" onclick="exportBackupJSON()" title="Exportar Backup JSON">💾 Backup</button>
-            <button class="btn btn-outline btn-icon" onclick="document.getElementById('import-file-input').click()" title="Restaurar Backup">📂 Restaurar</button>
-            <input type="file" id="import-file-input" style="display:none" onchange="importBackupJSON(event)" accept=".json">
-        </div>
-    </header>
-
-    <main>
-        <!-- BANNER DE ATRASO / METAS NÃO CUMPRIDAS -->
-        <div id="late-warning-banner" class="late-banner">
-            <div class="late-banner-info">
-                <span style="font-size: 24px;">⚠️</span>
-                <div>
-                    <strong>Atenção: Metas em atraso detectadas!</strong>
-                    <div style="font-size: 13px; color: #fca5a5;">Você tem tarefas do ciclo pendentes de dias anteriores. Não deixe acumular!</div>
-                </div>
-            </div>
-            <div class="late-banner-actions">
-                <button class="btn btn-warning" onclick="realignCycleToToday()">🔄 Reajustar Ciclo para Hoje</button>
-                <button class="btn btn-outline" onclick="dismissLateBanner()">Ignorar</button>
-            </div>
-        </div>
-
-        <!-- DASHBOARD -->
-        <section id="view-dashboard" class="view-section active">
-            <div class="stats-header">
-                <div class="stat-card blue-card">
-                    <div class="stat-title">Aproveitamento Geral</div>
-                    <div class="stat-value" id="perf-val">0,0%</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title" style="color: var(--color-warning);">🔥 Sequência (Streak)</div>
-                    <div class="stat-value" id="streak-val">0 dias</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title" style="color: var(--color-success);">⏱️ Horas Líquidas</div>
-                    <div class="stat-value" id="hours-val">0h00m</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title" style="color: var(--color-purple);">📚 Metas Validadas</div>
-                    <div class="stat-value" id="topics-val">0</div>
-                </div>
-            </div>
-
-            <div class="panel" style="border-color: var(--color-primary);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <h3>Tarefas Ativas de Hoje (<span id="today-name" style="color: var(--color-primary);">Nenhum Ciclo</span>)</h3>
-                    <button class="btn btn-primary" id="btn-extra-task" onclick="openExtraTaskModal()" style="display: none;">+ Adicionar Tarefa Extra</button>
-                </div>
-                
-                <div class="table-responsive" id="tasks-table-container">
-                    <table class="tasks-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Disciplina</th>
-                                <th>Fase Atual</th>
-                                <th>Assunto</th>
-                                <th>Carga Horária</th>
-                                <th>Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody id="today-tasks-body"></tbody>
-                    </table>
-                </div>
-
-                <div id="confirmation-box" class="confirmation-box">
-                    <h4 style="color: var(--color-success); font-size: 18px; text-align: center;">🎉 Excelente! Metas do dia concluídas.</h4>
-                    <button class="btn btn-success" onclick="commitTodayProgress()">✓ Finalizar o Dia e Avançar</button>
-                </div>
-
-                <div id="day-completed-box" class="day-completed-state">
-                    <h3 style="color: var(--color-primary); font-size: 22px;">Macro-Ciclo Concluído! 🏆</h3>
-                    <p style="color: var(--text-secondary); font-size: 15px;">Você exauriu todas as tarefas geradas. Vá até o calendário para configurar uma nova etapa.</p>
-                    <button class="btn btn-primary" onclick="switchTab('calendario')">Ir para Ciclo & Calendário</button>
-                </div>
-            </div>
-
-            <div class="dashboard-grid">
-                <div class="panel">
-                    <h3>Exaustão do Edital (Progresso por Fases)</h3>
-                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">A barra avança a cada fase concluída (Teoria, Revisão, Questões).</p>
-                    <div class="progress-list" id="progress-container"></div>
-                </div>
-                <div class="panel">
-                    <h3>Atividade de Manutenção Inteligente</h3>
-                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">
-                        Priorização calculada por <strong>Tempo sem Contato</strong> (≥ 1 dia) e <strong>Índice de Acertos</strong>.
-                    </p>
-                    <div id="maintenance-container"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- DISCIPLINAS -->
-        <section id="view-disciplinas" class="view-section">
-            <div class="controls-header">
-                <div>
-                    <h2>Disciplinas do Plano</h2>
-                    <p style="color: var(--text-secondary); font-size: 14px;">Gerencie disciplinas, pesos e configure os assuntos em lote através do botão "Personalizar".</p>
-                </div>
-                <button class="btn btn-primary" onclick="openSubjectModal()">+ Adicionar Disciplina</button>
-            </div>
-            <div class="cards-grid" id="subjects-container"></div>
-        </section>
-
-        <!-- QUESTÕES COM ACCORDION RETRÁTIL -->
-        <section id="view-questoes" class="view-section">
-            <div class="controls-header">
-                <div>
-                    <h2>Desempenho por Assunto</h2>
-                    <p style="color: var(--text-secondary); font-size: 14px;">Clique no assunto desejado para abrir os campos de registro de questões e links de cadernos.</p>
-                </div>
-            </div>
-            <div class="cards-grid" id="questions-container"></div>
-        </section>
-
-        <!-- CICLO & CALENDÁRIO COM DRAG AND DROP -->
-        <section id="view-calendario" class="view-section">
-            <div class="controls-header">
-                <div>
-                    <h2>Cronograma e Ciclo de Estudos</h2>
-                    <p style="color: var(--text-secondary); font-size: 14px;">Arraste qualquer tarefa entre os dias da semana para reorganizar seu estudo livremente.</p>
-                </div>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn btn-outline" onclick="openCycleSettingsModal()" style="border: 1px solid var(--border-color); background: var(--bg-card);" title="Ajustar limites diários e tempos">
-                        ⚙️ Configurações do Ciclo
-                    </button>
-                    <button class="btn btn-primary" onclick="generateMacroCycle()">
-                        ⚡ Gerar Ciclo a partir de Hoje
-                    </button>
-                </div>
-            </div>
-            
-            <div class="calendar-wrapper">
-                <div class="calendar-nav" id="calendar-nav" style="display: none;">
-                    <button class="btn btn-outline" onclick="prevCalWeek()">⬅️ Semana Anterior</button>
-                    <strong id="cal-week-label" style="font-size: 16px; color: var(--color-primary);">Semana 1</strong>
-                    <button class="btn btn-outline" onclick="nextCalWeek()">Próxima Semana ➡️</button>
-                </div>
-                <div class="calendar-grid" id="calendar-grid"></div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Modal Nova Disciplina -->
-    <div id="modal-disciplina" class="modal-overlay">
-        <div class="modal-content">
-            <h3>Nova Disciplina</h3>
-            <div>
-                <label style="font-size:12px; color:var(--text-secondary);">Nome da Matéria:</label>
-                <input type="text" id="new-subj-name" placeholder="Ex: Direito Penal, Português" style="width:100%; margin-top:4px;">
-            </div>
-            <div>
-                <label style="font-size:12px; color:var(--text-secondary);">Peso Base no Concurso (1 a 5):</label>
-                <input type="number" id="new-subj-weight" min="1" max="5" value="3" style="width:100%; margin-top:4px;">
-            </div>
-            <div>
-                <label style="font-size:12px; color:var(--text-secondary);">Cor Identificadora:</label>
-                <input type="color" id="new-subj-color" value="#3b82f6" style="height: 40px; width: 100%; padding: 2px; margin-top:4px;">
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button class="btn btn-primary" style="flex:1;" onclick="saveNewSubject()">Salvar Disciplina</button>
-                <button class="btn btn-outline" style="flex:1;" onclick="document.getElementById('modal-disciplina').style.display = 'none'">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL GRANDE: Personalizar Lote -->
-    <div id="modal-customize" class="modal-overlay">
-        <div class="modal-content large">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
-                <div>
-                    <h3 id="cust-title" style="color: var(--color-primary); margin: 0;">Personalizar</h3>
-                    <p style="font-size: 13px; color: var(--text-secondary); margin-top: 5px;">Configure as fases, tempos de teoria e o status de cada assunto.</p>
-                </div>
-                <div style="background: var(--bg-card); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 10px;">
-                    <label style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Peso (1 a 5):</label>
-                    <input type="number" id="cust-sub-weight" min="1" max="5" style="width: 60px; padding: 4px 8px; text-align: center; font-weight: bold; background: var(--bg-main);">
-                </div>
-            </div>
-            
-            <div style="display:flex; gap: 10px; margin-bottom: 10px;">
-                 <input type="text" id="cust-new-topic" placeholder="Novo assunto para esta disciplina..." style="flex:1;">
-                 <button class="btn btn-primary" onclick="addTopicFromCust()">+ Adicionar Assunto</button>
-            </div>
-
-            <div style="display: flex; gap: 10px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; align-items: center; margin-bottom: 5px;">
-                <span style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Marcar/Desmarcar Todos:</span>
-                <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleAllCustPhase('Teoria')">Teoria</button>
-                <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleAllCustPhase('Revisão')">Revisão</button>
-                <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleAllCustPhase('Questões')">Questões</button>
-            </div>
-            
-            <div class="cust-list-container" id="cust-topics-list"></div>
-            
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn btn-success" style="flex: 2; font-size: 14px;" onclick="saveCustomization()">✓ Salvar Configurações</button>
-                <button class="btn btn-outline" style="flex: 1;" onclick="document.getElementById('modal-customize').style.display = 'none'">Descartar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: TAREFA EXTRA -->
-    <div id="modal-extra-task" class="modal-overlay">
-        <div class="modal-content">
-            <h3 style="color: var(--color-primary); margin-bottom: 5px;">Adicionar Tarefa Extra</h3>
-            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">A tarefa será inserida no seu dia ativo de estudo.</p>
-
-            <div>
-                <label style="font-size: 13px; color: var(--text-secondary);">Disciplina</label>
-                <select id="extra-sub" style="width: 100%; margin-top: 4px;" onchange="updateExtraTaskTopics()"></select>
-            </div>
-            <div>
-                <label style="font-size: 13px; color: var(--text-secondary);">Assunto</label>
-                <select id="extra-topic" style="width: 100%; margin-top: 4px;"></select>
-            </div>
-            <div style="display: flex; gap: 10px;">
-                <div style="flex: 1;">
-                    <label style="font-size: 13px; color: var(--text-secondary);">Fase</label>
-                    <select id="extra-phase" style="width: 100%; margin-top: 4px;">
-                        <option value="Teoria">Teoria</option>
-                        <option value="Revisão">Revisão</option>
-                        <option value="Questões">Questões</option>
-                    </select>
-                </div>
-                <div style="flex: 1;">
-                    <label style="font-size: 13px; color: var(--text-secondary);">Tempo (Max 1.5h)</label>
-                    <input type="number" id="extra-time" style="width: 100%; margin-top: 4px;" step="0.5" value="1.0" min="0.5" max="1.5">
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 10px; margin-top: 5px;">
-                <div style="flex: 1;">
-                    <label style="font-size: 13px; color: var(--text-secondary);">Questões (Opcional)</label>
-                    <input type="number" id="extra-q-tot" style="width: 100%; margin-top: 4px;" placeholder="Total">
-                </div>
-                <div style="flex: 1;">
-                    <label style="font-size: 13px; color: var(--text-secondary);">Acertos</label>
-                    <input type="number" id="extra-q-cor" style="width: 100%; margin-top: 4px;" placeholder="Acertos">
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button class="btn btn-primary" style="flex: 1;" onclick="saveExtraTask()">Adicionar ao Dia</button>
-                <button class="btn btn-outline" style="flex: 1;" onclick="closeExtraTaskModal()">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: Configurações de Perfil e Dados -->
-    <div id="modal-profile-settings" class="modal-overlay">
-        <div class="modal-content" style="width: 500px; max-width: 95vw;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-                <h3 style="margin: 0; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">⚙️ Gerenciar Perfil e Dados</h3>
-                <button class="btn btn-outline btn-icon" onclick="closeProfileSettingsModal()">✕</button>
-            </div>
-
-            <p style="font-size: 13px; color: var(--text-secondary); margin-top: -4px;">
-                Perfil ativo: <strong id="modal-profile-current-name" style="color: var(--color-primary);">Principal</strong>
-            </p>
-
-            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 5px;">
-                <!-- 1. Zerar Estatísticas de Desempenho (Aproveitamento, Streak, Horas, Metas) -->
-                <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-                    <div>
-                        <strong style="font-size: 13px; color: var(--color-warning); display: block;">Zerar Estatísticas do Perfil</strong>
-                        <span style="font-size: 12px; color: var(--text-secondary);">Zera aproveitamento geral, streak, horas líquidas e metas batidas, mantendo suas matérias e assuntos cadastrados.</span>
-                    </div>
-                    <button class="btn btn-warning" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; font-weight: 700;" onclick="resetPerformanceStatsFromModal()">
-                        ↺ Zerar Métricas
-                    </button>
-                </div>
-
-                <!-- 2. Excluir Perfil Atual -->
-                <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-                    <div>
-                        <strong style="font-size: 13px; color: var(--text-primary); display: block;">Excluir Este Perfil</strong>
-                        <span style="font-size: 12px; color: var(--text-secondary);">Apaga o perfil ativo, suas matérias e cronograma.</span>
-                    </div>
-                    <button class="btn btn-danger" style="font-size: 12px; padding: 6px 14px; white-space: nowrap;" onclick="deleteCurrentProfileFromModal()">
-                        🗑️ Excluir Perfil
-                    </button>
-                </div>
-
-                <!-- 3. Reset Geral / Limpar Tudo -->
-                <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-                    <div>
-                        <strong style="font-size: 13px; color: #f87171; display: block;">Reset Total de Fábrica</strong>
-                        <span style="font-size: 12px; color: var(--text-secondary);">Apaga todos os perfis, matérias e histórico do navegador.</span>
-                    </div>
-                    <button class="btn btn-danger" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; background-color: #b91c1c;" onclick="resetAllApplicationDataFromModal()">
-                        ⚠️ Limpar Tudo
-                    </button>
-                </div>
-            </div>
-
-            <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-                <button class="btn btn-outline" style="width: 100%;" onclick="closeProfileSettingsModal()">Fechar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: Configurações do Ciclo -->
-    <div id="modal-cycle-settings" class="modal-overlay">
-        <div class="modal-content" style="width: 580px; max-width: 95vw;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-                <h3 style="margin: 0; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">⚙️ Configurações do Ciclo</h3>
-                <button class="btn btn-outline btn-icon" onclick="closeCycleSettingsModal()">✕</button>
-            </div>
-
-            <h4 style="font-size: 13px; text-transform: uppercase; color: var(--color-primary); letter-spacing: 0.5px; margin-top: 5px;">1. Carga Horária e Tempos por Bloco</h4>
-            <div class="cycle-settings-grid" style="margin-bottom: 12px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
-                <div>
-                    <label>Horas Semanais Totais</label>
-                    <input type="number" id="hours-per-week" value="28" min="1">
-                </div>
-                <div>
-                    <label>Duração Revisão (h)</label>
-                    <input type="number" id="cfg-hr-rev" value="0.5" step="0.5" min="0.25">
-                </div>
-                <div>
-                    <label>Duração Questões (h)</label>
-                    <input type="number" id="cfg-hr-que" value="1.0" step="0.5" min="0.5">
-                </div>
-                <div>
-                    <label>Fatiamento Máx Teoria (h)</label>
-                    <input type="number" id="cfg-hr-teo-slice" value="1.5" step="0.5" max="2.0" title="Blocos maiores que 1.5h são fatiados em dias diferentes para evitar fadiga">
-                </div>
-            </div>
-
-            <h4 style="font-size: 13px; text-transform: uppercase; color: var(--color-purple); letter-spacing: 0.5px;">2. Limite Máximo de Tarefas por Fase por Dia</h4>
-            <div class="cycle-settings-grid" style="margin-bottom: 16px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
-                <div>
-                    <label>Máx. Teoria / dia</label>
-                    <input type="number" id="cfg-max-teo-day" value="2" min="1" max="8">
-                </div>
-                <div>
-                    <label>Máx. Revisão / dia</label>
-                    <input type="number" id="cfg-max-rev-day" value="2" min="0" max="8">
-                </div>
-                <div>
-                    <label>Máx. Questões / dia</label>
-                    <input type="number" id="cfg-max-que-day" value="2" min="0" max="8">
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 10px;">
-                <button class="btn btn-success" style="flex: 2;" onclick="saveCycleSettings()">✓ Salvar Configurações</button>
-                <button class="btn btn-outline" style="flex: 1;" onclick="closeCycleSettingsModal()">Fechar</button>
-            </div>
-
-            <div style="border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <div>
-                    <strong style="color: var(--color-danger); font-size: 13px; display: block;">Apagar Ciclo Atual</strong>
-                    <span style="font-size: 12px; color: var(--text-secondary);">Remove o cronograma e o calendário gerado sem apagar suas matérias.</span>
-                </div>
-                <button class="btn btn-danger" onclick="deleteCurrentCycle()" style="font-size: 12px; padding: 7px 14px;">
-                    🗑️ Apagar Ciclo
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Perguntas (Universal) -->
-    <div id="modal-questions" class="modal-overlay">
-        <div class="modal-content" id="question-modal-content">
-            <h3 style="color: var(--color-primary); margin-bottom: 5px;">Validação de Meta</h3>
-            <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 10px;">Você realizou questões agora nesta tarefa?</p>
-            <div id="q-step-1" style="display: flex; gap: 10px;">
-                <button class="btn btn-success" style="flex:1;" onclick="showQuestionInputs()">Sim, registrar questões</button>
-                <button class="btn btn-outline" style="flex:1;" onclick="skipQuestionsAndFinish()">Não, apenas concluir</button>
-            </div>
-            <div id="q-step-2" style="display: none; flex-direction: column; gap: 15px;">
-                <input type="number" id="q-input-total" placeholder="Total Resolvidas">
-                <input type="number" id="q-input-correct" placeholder="Total Acertos">
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-primary" style="flex:1;" onclick="submitQuestionsAndFinish()">Salvar e Concluir</button>
-                    <button class="btn btn-outline" style="flex:1;" onclick="document.getElementById('modal-questions').style.display = 'none'">Cancelar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    <script>
         // --- MOTOR DE DADOS RESILIENTE COM SUPORTE A FALLBACK ---
         var currentProfileKey = 'Principal';
         try {
@@ -636,11 +65,13 @@
             };
             document.getElementById('modal-custom-dialog').style.display = 'flex';
         }
+        
         function customConfirm(msg, onConfirm) {
             document.getElementById('custom-dialog-title').innerText = 'Confirmação';
             document.getElementById('custom-dialog-msg').innerText = msg;
             document.getElementById('custom-dialog-cancel').style.display = 'block';
             document.getElementById('custom-dialog-ok').innerText = 'Confirmar';
+            
             document.getElementById('custom-dialog-cancel').onclick = () => {
                 document.getElementById('modal-custom-dialog').style.display = 'none';
             };
@@ -651,7 +82,8 @@
             document.getElementById('modal-custom-dialog').style.display = 'flex';
         }
 
-        let currentCustSubId = null; 
+        // --- INÍCIO SCRIPTS ---
+let currentCustSubId = null; 
         let currentCalWeekView = 0; 
 
         // Cronômetro Líquido
@@ -728,7 +160,10 @@
         }
 
         function resetPerformanceStats() {
-            customConfirm("Deseja realmente zerar as estatísticas de desempenho deste perfil (Aproveitamento Geral, Sequência/Streak, Horas Líquidas e Metas Validadas)? Suas matérias e assuntos cadastrados NÃO serão apagados.", () => {
+            if (!confirm("Deseja realmente zerar as estatísticas de desempenho deste perfil (Aproveitamento Geral, Sequência/Streak, Horas Líquidas e Metas Validadas)?\n\nSuas matérias e assuntos cadastrados NÃO serão apagados.")) {
+                return;
+            }
+
             appData.streak = 0;
             appData.totalHours = 0.0;
             appData.completedTasksCount = 0;
@@ -792,7 +227,10 @@
                 return;
             }
 
-            customConfirm(`Atenção: Tem certeza de que deseja excluir permanentemente o perfil "${currentProfileKey}" e todo o seu planejamento?`, () => {
+            if (!confirm(`Atenção: Tem certeza de que deseja excluir permanentemente o perfil "${currentProfileKey}" e todo o seu planejamento?`)) {
+                return;
+            }
+
             try {
                 localStorage.removeItem(`studyPlannerData_${currentProfileKey}`);
             } catch(e) {}
@@ -807,11 +245,46 @@
             loadData();
 
             customAlert(`Perfil excluído com sucesso! Agora você está no perfil "${currentProfileKey}".`);
+        }
+
+        function deleteCurrentCycle() {
+            if (!appData.cycle || !appData.cycle.active) {
+                customAlert("Não há nenhum ciclo ativo neste perfil para apagar.");
+                return;
+            }
+
+            if (!confirm("Tem certeza que deseja apagar o ciclo atual? As tarefas agendadas e o calendário serão resetados, mas suas matérias e histórico de questões serão mantidos.")) {
+                return;
+            }
+
+            appData.cycle = {
+                active: false,
+                currentCycleDayIndex: 0,
+                dateLabels: [],
+                completedDays: [],
+                days: [],
+                startDate: null
+            };
+
+            saveData();
+            closeCycleSettingsModal();
+            checkOverdueStatus();
+            renderAll();
+            customAlert("Ciclo apagado com sucesso! Agora você pode gerar um novo ciclo quando quiser.");
             });
         }
 
         function resetAllApplicationData() {
-            customConfirm("⚠️ ATENÇÃO: Esta ação é irreversível! Isso apagará TODOS os perfis, todas as matérias e ciclos. Deseja realmente continuar?", () => {
+            if (!confirm("⚠️ ATENÇÃO: Esta ação é irreversível!\n\nIsso apagará TODOS os perfis, todas as matérias, questões registradas, histórico e ciclos salvos neste navegador.\n\nDeseja realmente continuar?")) {
+                return;
+            }
+
+            const confirmCode = prompt("Para confirmar a exclusão de TODOS os dados, digite LIMPAR abaixo:");
+            if (confirmCode !== 'LIMPAR') {
+                customAlert("Confirmação não coincidiu. Operação cancelada.");
+                return;
+            }
+
             try {
                 const keysToRemove = [];
                 for (let i = 0; i < localStorage.length; i++) {
@@ -834,7 +307,6 @@
             loadData();
 
             customAlert("Todos os dados foram excluídos e o sistema foi restaurado para o padrão inicial.");
-            });
         }
 
         function exportBackupJSON() {
@@ -1085,7 +557,7 @@
             checkOverdueStatus();
             renderAll();
             customAlert("Datas do ciclo realinhadas para hoje com sucesso!");
-            });
+            }); // end confirm
         }
 
         function dismissLateBanner() {
@@ -1391,11 +863,11 @@
         }
 
         function removeSubject(id) { 
-            customConfirm("Remover esta disciplina e todos os seus assuntos?", () => {
+            if(confirm("Remover esta disciplina e todos os seus assuntos?")) { 
                 appData.subjects = appData.subjects.filter(s => s.id !== id); 
-                saveData();
-                renderAll();
-            });
+                saveData(); 
+                renderAll(); 
+            } 
         }
 
         function toggleHideSubject(subId) {
@@ -1790,11 +1262,19 @@
             checkOverdueStatus();
             renderAll(); 
             window.scrollTo(0, 0);
+            }; // end proceed
+            
+            if (appData.cycle.active) {
+                customConfirm("Atenção: Isso gerará um NOVO cronograma completo de estudos substituindo o atual. Deseja prosseguir?", proceed);
+            } else {
+                proceed();
+            }
         }
 
         // --- GERAÇÃO AVANÇADA DE CICLO COM LIMITES DIÁRIOS POR FASE ---
         function generateMacroCycle() {
             if (appData.subjects.length === 0) return customAlert("Cadastre disciplinas antes de gerar um ciclo.");
+            
             const proceed = () => {
             const weeklyHoursEl = document.getElementById('hours-per-week');
             const revDurEl = document.getElementById('cfg-hr-rev');
@@ -1974,9 +1454,6 @@
             renderAll(); 
             switchTab('dashboard');
             customAlert(`Ciclo gerado com sucesso! Foram planejados ${allDays.length} dias de estudo com respeito aos seus limites diários.`);
-            };
-            if(appData.cycle && appData.cycle.active) customConfirm("Atenção: Isso gerará um NOVO cronograma completo de estudos substituindo o atual. Deseja prosseguir?", proceed);
-            else proceed();
         }
 
         // --- DASHBOARD E RENDERIZADORES ---
@@ -2504,18 +1981,4 @@
         } else {
             loadData();
         }
-    </script>
-
-    <!-- Custom Dialog Modal -->
-    <div id="modal-custom-dialog" class="modal-overlay" style="z-index: 9999;">
-        <div class="modal-content" style="width: 400px; max-width: 90vw;">
-            <h3 id="custom-dialog-title" style="color: var(--color-primary); margin-bottom: 5px;">Aviso</h3>
-            <p id="custom-dialog-msg" style="font-size: 14px; color: var(--text-secondary); margin-bottom: 20px;"></p>
-            <div style="display: flex; gap: 10px;">
-                <button id="custom-dialog-cancel" class="btn btn-outline" style="flex: 1;">Cancelar</button>
-                <button id="custom-dialog-ok" class="btn btn-primary" style="flex: 1;">Confirmar</button>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
+    

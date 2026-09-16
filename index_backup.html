@@ -156,8 +156,8 @@
         .timer-widget { display: flex; align-items: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 4px 12px; border-radius: 20px; font-size: 13px; }
         .timer-digits { font-family: monospace; font-size: 15px; font-weight: 700; color: var(--color-primary); min-width: 65px; text-align: center; }
     </style>
-  
-<script type="module" src="./src/firebase-sync.js"></script></head>
+  <script type="module" crossorigin src="./assets/index-CsCrUj0y.js"></script>
+</head>
 <body>
 
     <header>
@@ -624,33 +624,6 @@
         var appData = getDefaultAppData();
         const dayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
         let pendingTaskObj = null;
-        
-        let dialogCallback = null;
-        function customAlert(msg) {
-            document.getElementById('custom-dialog-title').innerText = 'Aviso';
-            document.getElementById('custom-dialog-msg').innerText = msg;
-            document.getElementById('custom-dialog-cancel').style.display = 'none';
-            document.getElementById('custom-dialog-ok').innerText = 'OK';
-            document.getElementById('custom-dialog-ok').onclick = () => {
-                document.getElementById('modal-custom-dialog').style.display = 'none';
-            };
-            document.getElementById('modal-custom-dialog').style.display = 'flex';
-        }
-        function customConfirm(msg, onConfirm) {
-            document.getElementById('custom-dialog-title').innerText = 'Confirmação';
-            document.getElementById('custom-dialog-msg').innerText = msg;
-            document.getElementById('custom-dialog-cancel').style.display = 'block';
-            document.getElementById('custom-dialog-ok').innerText = 'Confirmar';
-            document.getElementById('custom-dialog-cancel').onclick = () => {
-                document.getElementById('modal-custom-dialog').style.display = 'none';
-            };
-            document.getElementById('custom-dialog-ok').onclick = () => {
-                document.getElementById('modal-custom-dialog').style.display = 'none';
-                if (onConfirm) onConfirm();
-            };
-            document.getElementById('modal-custom-dialog').style.display = 'flex';
-        }
-
         let currentCustSubId = null; 
         let currentCalWeekView = 0; 
 
@@ -728,7 +701,10 @@
         }
 
         function resetPerformanceStats() {
-            customConfirm("Deseja realmente zerar as estatísticas de desempenho deste perfil (Aproveitamento Geral, Sequência/Streak, Horas Líquidas e Metas Validadas)? Suas matérias e assuntos cadastrados NÃO serão apagados.", () => {
+            if (!confirm("Deseja realmente zerar as estatísticas de desempenho deste perfil (Aproveitamento Geral, Sequência/Streak, Horas Líquidas e Metas Validadas)?\n\nSuas matérias e assuntos cadastrados NÃO serão apagados.")) {
+                return;
+            }
+
             appData.streak = 0;
             appData.totalHours = 0.0;
             appData.completedTasksCount = 0;
@@ -771,8 +747,7 @@
             saveData();
             checkOverdueStatus();
             renderAll();
-            customAlert("Estatísticas de desempenho zeradas com sucesso! Seu aproveitamento, streak, horas e metas foram reiniciados mantendo suas disciplinas intactas.");
-            });
+            alert("Estatísticas de desempenho zeradas com sucesso! Seu aproveitamento, streak, horas e metas foram reiniciados mantendo suas disciplinas intactas.");
         }
 
         function deleteCurrentProfileFromModal() {
@@ -788,11 +763,14 @@
         function deleteCurrentProfile() {
             const list = getProfilesList();
             if (list.length <= 1) {
-                customAlert("Você possui apenas 1 perfil ativo. Não é possível excluir o único perfil existente. Crie outro perfil primeiro se desejar remover este.");
+                alert("Você possui apenas 1 perfil ativo. Não é possível excluir o único perfil existente. Crie outro perfil primeiro se desejar remover este.");
                 return;
             }
 
-            customConfirm(`Atenção: Tem certeza de que deseja excluir permanentemente o perfil "${currentProfileKey}" e todo o seu planejamento?`, () => {
+            if (!confirm(`Atenção: Tem certeza de que deseja excluir permanentemente o perfil "${currentProfileKey}" e todo o seu planejamento?`)) {
+                return;
+            }
+
             try {
                 localStorage.removeItem(`studyPlannerData_${currentProfileKey}`);
             } catch(e) {}
@@ -806,12 +784,46 @@
             } catch(e) {}
             loadData();
 
-            customAlert(`Perfil excluído com sucesso! Agora você está no perfil "${currentProfileKey}".`);
-            });
+            alert(`Perfil excluído com sucesso! Agora você está no perfil "${currentProfileKey}".`);
+        }
+
+        function deleteCurrentCycle() {
+            if (!appData.cycle || !appData.cycle.active) {
+                alert("Não há nenhum ciclo ativo neste perfil para apagar.");
+                return;
+            }
+
+            if (!confirm("Tem certeza que deseja apagar o ciclo atual? As tarefas agendadas e o calendário serão resetados, mas suas matérias e histórico de questões serão mantidos.")) {
+                return;
+            }
+
+            appData.cycle = {
+                active: false,
+                currentCycleDayIndex: 0,
+                dateLabels: [],
+                completedDays: [],
+                days: [],
+                startDate: null
+            };
+
+            saveData();
+            closeCycleSettingsModal();
+            checkOverdueStatus();
+            renderAll();
+            alert("Ciclo apagado com sucesso! Agora você pode gerar um novo ciclo quando quiser.");
         }
 
         function resetAllApplicationData() {
-            customConfirm("⚠️ ATENÇÃO: Esta ação é irreversível! Isso apagará TODOS os perfis, todas as matérias e ciclos. Deseja realmente continuar?", () => {
+            if (!confirm("⚠️ ATENÇÃO: Esta ação é irreversível!\n\nIsso apagará TODOS os perfis, todas as matérias, questões registradas, histórico e ciclos salvos neste navegador.\n\nDeseja realmente continuar?")) {
+                return;
+            }
+
+            const confirmCode = prompt("Para confirmar a exclusão de TODOS os dados, digite LIMPAR abaixo:");
+            if (confirmCode !== 'LIMPAR') {
+                alert("Confirmação não coincidiu. Operação cancelada.");
+                return;
+            }
+
             try {
                 const keysToRemove = [];
                 for (let i = 0; i < localStorage.length; i++) {
@@ -833,8 +845,7 @@
             saveData();
             loadData();
 
-            customAlert("Todos os dados foram excluídos e o sistema foi restaurado para o padrão inicial.");
-            });
+            alert("Todos os dados foram excluídos e o sistema foi restaurado para o padrão inicial.");
         }
 
         function exportBackupJSON() {
@@ -868,9 +879,9 @@
                     }
                     saveData();
                     renderAll();
-                    customAlert("Backup restaurado com sucesso para o perfil atual!");
+                    alert("Backup restaurado com sucesso para o perfil atual!");
                 } catch(err) {
-                    customAlert("Erro ao ler o arquivo JSON de backup: " + err.message);
+                    alert("Erro ao ler o arquivo JSON de backup: " + err.message);
                 }
             };
             reader.readAsText(file);
@@ -1067,7 +1078,8 @@
         }
 
         function realignCycleToToday() {
-            customConfirm("Isso ajustará as datas do cronograma restante a partir da data de hoje, mantendo todo o seu histórico já concluído. Deseja prosseguir?", () => {
+            if (!confirm("Isso ajustará as datas do cronograma restante a partir da data de hoje, mantendo todo o seu histórico já concluído. Deseja prosseguir?")) return;
+            
             const now = new Date();
             const activeIdx = appData.cycle.currentCycleDayIndex || 0;
             
@@ -1084,8 +1096,7 @@
             saveData();
             checkOverdueStatus();
             renderAll();
-            customAlert("Datas do ciclo realinhadas para hoje com sucesso!");
-            });
+            alert("Datas do ciclo realinhadas para hoje com sucesso!");
         }
 
         function dismissLateBanner() {
@@ -1133,12 +1144,11 @@
         }
 
         function removeTopicCust(topicId) {
-            customConfirm("Remover este assunto?", () => {
+            if(!confirm("Remover este assunto?")) return;
             const sub = appData.subjects.find(s => s.id === currentCustSubId);
             if (!sub) return;
             sub.topics = sub.topics.filter(t => t.id !== topicId);
             renderCustomizeList();
-            });
         }
 
         // --- DRAG AND DROP REORDERING ---
@@ -1369,7 +1379,7 @@
         function saveNewSubject() {
             const nameEl = document.getElementById('new-subj-name');
             const name = nameEl ? nameEl.value.trim() : '';
-            if (!name) return customAlert("Digite o nome da disciplina.");
+            if (!name) return alert("Digite o nome da disciplina.");
             const weightEl = document.getElementById('new-subj-weight');
             const weight = parseInt(weightEl ? weightEl.value : 3) || 3;
             const colorEl = document.getElementById('new-subj-color');
@@ -1391,11 +1401,11 @@
         }
 
         function removeSubject(id) { 
-            customConfirm("Remover esta disciplina e todos os seus assuntos?", () => {
+            if(confirm("Remover esta disciplina e todos os seus assuntos?")) { 
                 appData.subjects = appData.subjects.filter(s => s.id !== id); 
-                saveData();
-                renderAll();
-            });
+                saveData(); 
+                renderAll(); 
+            } 
         }
 
         function toggleHideSubject(subId) {
@@ -1518,7 +1528,7 @@
         function openCadernoLink(topicId) {
             const input = document.getElementById(`qlnk_${topicId}`);
             const raw = input ? input.value.trim() : '';
-            if (!raw) return customAlert("Nenhum link cadastrado para este assunto.");
+            if (!raw) return alert("Nenhum link cadastrado para este assunto.");
             const url = (raw.startsWith('http://') || raw.startsWith('https://')) ? raw : `https://${raw}`;
             window.open(url, '_blank');
         }
@@ -1538,13 +1548,13 @@
             topic.link = lnkEl ? lnkEl.value.trim() : '';
             
             if (topic.qCorrect > topic.qTotal) {
-                customAlert("Atenção: Os acertos não podem ultrapassar o total de questões.");
+                alert("Atenção: Os acertos não podem ultrapassar o total de questões.");
                 return;
             }
 
             saveData(); 
             renderAll(); 
-            customAlert("Estatísticas e link salvos com sucesso!");
+            alert("Estatísticas e link salvos com sucesso!");
         }
 
         // --- SISTEMA TAREFA EXTRA ---
@@ -1612,13 +1622,13 @@
             const qTot = parseInt(qTotEl ? qTotEl.value : 0) || 0;
             const qCor = parseInt(qCorEl ? qCorEl.value : 0) || 0;
 
-            if(!subId || !topicId) return customAlert("Selecione a disciplina e o assunto.");
-            if(time > 1.5) return customAlert("Tarefas extras não devem exceder 1,5h (90 min) de acordo com o padrão do ciclo.");
-            if(qCor > qTot) return customAlert("Acertos não podem ser maiores que o total de questões.");
+            if(!subId || !topicId) return alert("Selecione a disciplina e o assunto.");
+            if(time > 1.5) return alert("Tarefas extras não devem exceder 1,5h (90 min) de acordo com o padrão do ciclo.");
+            if(qCor > qTot) return alert("Acertos não podem ser maiores que o total de questões.");
 
             const sub = appData.subjects.find(s => s.id === subId);
             const topic = sub ? sub.topics.find(t => t.id === topicId) : null;
-            if (!sub || !topic) return customAlert("Erro ao identificar matéria/assunto.");
+            if (!sub || !topic) return alert("Erro ao identificar matéria/assunto.");
 
             const activeIdx = appData.cycle.currentCycleDayIndex || 0;
             if (!Array.isArray(appData.cycle.days[activeIdx])) {
@@ -1645,7 +1655,7 @@
             saveData();
             closeExtraTaskModal();
             renderAll();
-            customAlert("Tarefa Extra adicionada com sucesso ao seu dia ativo!");
+            alert("Tarefa Extra adicionada com sucesso ao seu dia ativo!");
         }
 
         // --- CONCLUSÃO E CHECK DE TAREFA COM VÍNCULO DIRETO ---
@@ -1742,7 +1752,7 @@
             const corEl = document.getElementById('q-input-correct');
             const total = parseInt(totEl ? totEl.value : 0) || 0;
             const correct = parseInt(corEl ? corEl.value : 0) || 0;
-            if (correct > total) return customAlert("Acertos não podem ser maiores que o total!");
+            if (correct > total) return alert("Acertos não podem ser maiores que o total!");
             finalizeTaskData(total, correct);
             const modal = document.getElementById('modal-questions');
             if (modal) modal.style.display = 'none';
@@ -1794,8 +1804,9 @@
 
         // --- GERAÇÃO AVANÇADA DE CICLO COM LIMITES DIÁRIOS POR FASE ---
         function generateMacroCycle() {
-            if (appData.subjects.length === 0) return customAlert("Cadastre disciplinas antes de gerar um ciclo.");
-            const proceed = () => {
+            if (appData.subjects.length === 0) return alert("Cadastre disciplinas antes de gerar um ciclo.");
+            if (appData.cycle.active && !confirm("Atenção: Isso gerará um NOVO cronograma completo de estudos substituindo o atual. Deseja prosseguir?")) return;
+            
             const weeklyHoursEl = document.getElementById('hours-per-week');
             const revDurEl = document.getElementById('cfg-hr-rev');
             const queDurEl = document.getElementById('cfg-hr-que');
@@ -1862,7 +1873,7 @@
                 });
             });
 
-            if(simTopics.length === 0) return customAlert("Não há assuntos marcados como Pendentes em disciplinas ativas para gerar o ciclo! Verifique na aba 'Disciplinas & Fases'.");
+            if(simTopics.length === 0) return alert("Não há assuntos marcados como Pendentes em disciplinas ativas para gerar o ciclo! Verifique na aba 'Disciplinas & Fases'.");
 
             let allDays = [[]];
             let currentDayIndex = 0;
@@ -1973,10 +1984,7 @@
             checkOverdueStatus();
             renderAll(); 
             switchTab('dashboard');
-            customAlert(`Ciclo gerado com sucesso! Foram planejados ${allDays.length} dias de estudo com respeito aos seus limites diários.`);
-            };
-            if(appData.cycle && appData.cycle.active) customConfirm("Atenção: Isso gerará um NOVO cronograma completo de estudos substituindo o atual. Deseja prosseguir?", proceed);
-            else proceed();
+            alert(`Ciclo gerado com sucesso! Foram planejados ${allDays.length} dias de estudo com respeito aos seus limites diários.`);
         }
 
         // --- DASHBOARD E RENDERIZADORES ---
@@ -2320,7 +2328,7 @@
 
             saveData();
             closeCycleSettingsModal();
-            customAlert("Configurações do ciclo salvas com sucesso!");
+            alert("Configurações do ciclo salvas com sucesso!");
         }
 
         // --- SISTEMA DRAG AND DROP DE TAREFAS NO CALENDÁRIO ---
@@ -2387,7 +2395,7 @@
             if (fromDayIndex === targetDayIndex) return;
 
             if (appData.cycle.completedDays && appData.cycle.completedDays[targetDayIndex]) {
-                customAlert("Este dia já foi concluído e não pode receber novas tarefas.");
+                alert("Este dia já foi concluído e não pode receber novas tarefas.");
                 return;
             }
 
@@ -2505,17 +2513,5 @@
             loadData();
         }
     </script>
-
-    <!-- Custom Dialog Modal -->
-    <div id="modal-custom-dialog" class="modal-overlay" style="z-index: 9999;">
-        <div class="modal-content" style="width: 400px; max-width: 90vw;">
-            <h3 id="custom-dialog-title" style="color: var(--color-primary); margin-bottom: 5px;">Aviso</h3>
-            <p id="custom-dialog-msg" style="font-size: 14px; color: var(--text-secondary); margin-bottom: 20px;"></p>
-            <div style="display: flex; gap: 10px;">
-                <button id="custom-dialog-cancel" class="btn btn-outline" style="flex: 1;">Cancelar</button>
-                <button id="custom-dialog-ok" class="btn btn-primary" style="flex: 1;">Confirmar</button>
-            </div>
-        </div>
-    </div>
 </body>
 </html>
