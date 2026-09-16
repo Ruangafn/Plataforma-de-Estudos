@@ -65,13 +65,11 @@
             };
             document.getElementById('modal-custom-dialog').style.display = 'flex';
         }
-        
         function customConfirm(msg, onConfirm) {
             document.getElementById('custom-dialog-title').innerText = 'Confirmação';
             document.getElementById('custom-dialog-msg').innerText = msg;
             document.getElementById('custom-dialog-cancel').style.display = 'block';
             document.getElementById('custom-dialog-ok').innerText = 'Confirmar';
-            
             document.getElementById('custom-dialog-cancel').onclick = () => {
                 document.getElementById('modal-custom-dialog').style.display = 'none';
             };
@@ -82,8 +80,7 @@
             document.getElementById('modal-custom-dialog').style.display = 'flex';
         }
 
-        // --- INÍCIO SCRIPTS ---
-let currentCustSubId = null; 
+        let currentCustSubId = null; 
         let currentCalWeekView = 0; 
 
         // Cronômetro Líquido
@@ -171,7 +168,7 @@ let currentCustSubId = null;
             if (Array.isArray(appData.subjects)) {
                 appData.subjects.forEach(sub => {
                     if (Array.isArray(sub.topics)) {
-                        sub.topics.forEach(top => {
+                        sub.topics.forEach((top, index) => {
                             top.qTotal = 0;
                             top.qCorrect = 0;
                             top.rounds = 0;
@@ -242,12 +239,33 @@ let currentCustSubId = null;
             });
         }
 
+        
+        function deleteCurrentCycle() {
+            if (!appData.cycle || !appData.cycle.active) {
+                customAlert("Não há nenhum ciclo ativo neste perfil para apagar.");
+                return;
+            }
+
+            customConfirm("Tem certeza que deseja apagar o ciclo atual? As tarefas agendadas e o calendário serão resetados, mas suas matérias e histórico de questões serão mantidos.", () => {
+                appData.cycle = {
+                    active: false,
+                    currentCycleDayIndex: 0,
+                    dateLabels: [],
+                    completedDays: [],
+                    days: [],
+                    startDate: null
+                };
+
+                saveData();
+                closeCycleSettingsModal();
+                checkOverdueStatus();
+                renderAll();
+                customAlert("Ciclo apagado com sucesso! Agora você pode gerar um novo ciclo quando quiser.");
+            });
+        }
+
         function resetAllApplicationData() {
             customConfirm("⚠️ ATENÇÃO: Esta ação é irreversível! Isso apagará TODOS os perfis, todas as matérias e ciclos. Deseja realmente continuar?", () => {
-
-
-            
-
             try {
                 const keysToRemove = [];
                 for (let i = 0; i < localStorage.length; i++) {
@@ -434,7 +452,6 @@ let currentCustSubId = null;
             renderProfileSelector();
             checkOverdueStatus();
             renderAll();
-            });
         }
 
         function saveData() {
@@ -467,9 +484,8 @@ let currentCustSubId = null;
                 }
                 renderCalendar();
             } else { 
-                renderAll();
-            });
-        }
+                renderAll(); 
+            }
         }
 
         // --- SISTEMA DE VERIFICAÇÃO DE ATRASO ---
@@ -576,6 +592,7 @@ let currentCustSubId = null;
             if (!sub) return;
             sub.topics = sub.topics.filter(t => t.id !== topicId);
             renderCustomizeList();
+            });
         }
 
         // --- DRAG AND DROP REORDERING ---
@@ -791,7 +808,6 @@ let currentCustSubId = null;
             if (modal) modal.style.display = 'none';
             saveData(); 
             renderAll();
-            });
         }
 
         // --- DISCIPLINAS & CARDS ---
@@ -826,16 +842,14 @@ let currentCustSubId = null;
             if (modal) modal.style.display = 'none'; 
             saveData(); 
             renderAll();
-            });
         }
 
         function removeSubject(id) { 
             customConfirm("Remover esta disciplina e todos os seus assuntos?", () => {
                 appData.subjects = appData.subjects.filter(s => s.id !== id); 
-                saveData(); 
+                saveData();
                 renderAll();
             });
-        } 
         }
 
         function toggleHideSubject(subId) {
@@ -844,7 +858,6 @@ let currentCustSubId = null;
             sub.hidden = !sub.hidden;
             saveData();
             renderAll();
-            });
         }
 
         function renderSubjects() {
@@ -1032,7 +1045,7 @@ let currentCustSubId = null;
             if(!sub || !sub.topics || sub.topics.length === 0) {
                 topicSelect.innerHTML = '<option value="">Nenhum assunto nesta disciplina</option>';
             } else {
-                sub.topics.forEach(top => {
+                sub.topics.forEach((top, index) => {
                     topicSelect.innerHTML += `<option value="${top.id}">${top.name}</option>`;
                 });
             }
@@ -1149,8 +1162,7 @@ let currentCustSubId = null;
 
                 saveData(); 
                 renderAll();
-            });
-        } else {
+            } else {
                 pendingTaskObj = task; 
                 const qTot = document.getElementById('q-input-total');
                 if (qTot) qTot.value = task.prefilledQTotal || '';
@@ -1220,7 +1232,6 @@ let currentCustSubId = null;
             }
             saveData(); 
             renderAll();
-            });
         }
 
         function commitTodayProgress() {
@@ -1233,13 +1244,6 @@ let currentCustSubId = null;
             checkOverdueStatus();
             renderAll(); 
             window.scrollTo(0, 0);
-            }; // end proceed
-            
-            if (appData.cycle.active) {
-                customConfirm("Atenção: Isso gerará um NOVO cronograma completo de estudos substituindo o atual. Deseja prosseguir?", proceed);
-            } else {
-                proceed();
-            }
         }
 
         // --- GERAÇÃO AVANÇADA DE CICLO COM LIMITES DIÁRIOS POR FASE ---
@@ -1286,27 +1290,37 @@ let currentCustSubId = null;
             appData.subjects.forEach(sub => {
                 if (sub.hidden) return;
                 const topics = sub.topics || [];
-                topics.forEach(top => {
+                topics.forEach((top, index) => {
                     const phases = top.phases || ['Teoria', 'Revisão', 'Questões'];
                     const curIdx = top.currentPhaseIdx || 0;
                     if (top.status === 'pending' && phases.length > 0 && curIdx < phases.length) {
                         const lastSeen = appData.topicHistory[top.id] || 0;
                         let stalenessBonus = lastSeen > 0 ? Math.min(((now - lastSeen) / 86400000) * 0.15, 4) : 1; 
+
+                        let perfBonus = 0;
+                        if (top.qTotal > 0) {
+                            const perf = top.qCorrect / top.qTotal;
+                            if (perf < 0.5) perfBonus = 2.5; 
+                            else if (perf < 0.7) perfBonus = 1.5;
+                            else if (perf >= 0.9) perfBonus = -1.0; 
+                        }
                         
                         simTopics.push({
+
                             subId: sub.id, 
                             topicId: top.id, 
                             subName: sub.name, 
                             topicName: top.name, 
                             color: sub.color, 
                             weight: sub.weight || 3, 
-                            bonus: stalenessBonus,
+                            bonus: stalenessBonus + perfBonus,
                             phases: phases, 
                             simIdx: curIdx, 
                             teoHours: top.teoHours || 2.0,
                             remainingDur: 0, 
                             currentPart: 1, 
-                            totalParts: 0
+                            totalParts: 0,
+                            orderIdx: index
                         });
                     }
                 });
@@ -1328,7 +1342,18 @@ let currentCustSubId = null;
                 let countRev = currentDayTasks.filter(task => task.phase.startsWith('Revisão')).length;
                 let countQue = currentDayTasks.filter(task => task.phase.startsWith('Questões')).length;
 
+                let minOrderPerSub = {};
+                simTopics.forEach(t => {
+                    if (t.simIdx < t.phases.length) {
+                        if (minOrderPerSub[t.subId] === undefined || t.orderIdx < minOrderPerSub[t.subId]) {
+                            minOrderPerSub[t.subId] = t.orderIdx;
+                        }
+                    }
+                });
+
                 let validTopics = simTopics.filter(t => {
+                    if (t.orderIdx !== minOrderPerSub[t.subId]) return false;
+
                     if (t.simIdx >= t.phases.length) return false;
                     if (currentDayTasks.some(task => task.topicId === t.topicId)) return false;
 
@@ -1424,6 +1449,9 @@ let currentCustSubId = null;
             renderAll(); 
             switchTab('dashboard');
             customAlert(`Ciclo gerado com sucesso! Foram planejados ${allDays.length} dias de estudo com respeito aos seus limites diários.`);
+            };
+            if(appData.cycle && appData.cycle.active) customConfirm("Atenção: Isso gerará um NOVO cronograma completo de estudos substituindo o atual. Deseja prosseguir?", proceed);
+            else proceed();
         }
 
         // --- DASHBOARD E RENDERIZADORES ---
@@ -1851,7 +1879,6 @@ let currentCustSubId = null;
 
             saveData();
             renderAll();
-            });
         }
 
         function renderCalendar() {

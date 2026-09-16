@@ -810,6 +810,31 @@
             });
         }
 
+        
+        function deleteCurrentCycle() {
+            if (!appData.cycle || !appData.cycle.active) {
+                customAlert("Não há nenhum ciclo ativo neste perfil para apagar.");
+                return;
+            }
+
+            customConfirm("Tem certeza que deseja apagar o ciclo atual? As tarefas agendadas e o calendário serão resetados, mas suas matérias e histórico de questões serão mantidos.", () => {
+                appData.cycle = {
+                    active: false,
+                    currentCycleDayIndex: 0,
+                    dateLabels: [],
+                    completedDays: [],
+                    days: [],
+                    startDate: null
+                };
+
+                saveData();
+                closeCycleSettingsModal();
+                checkOverdueStatus();
+                renderAll();
+                customAlert("Ciclo apagado com sucesso! Agora você pode gerar um novo ciclo quando quiser.");
+            });
+        }
+
         function resetAllApplicationData() {
             customConfirm("⚠️ ATENÇÃO: Esta ação é irreversível! Isso apagará TODOS os perfis, todas as matérias e ciclos. Deseja realmente continuar?", () => {
             try {
@@ -1841,16 +1866,24 @@
                     const curIdx = top.currentPhaseIdx || 0;
                     if (top.status === 'pending' && phases.length > 0 && curIdx < phases.length) {
                         const lastSeen = appData.topicHistory[top.id] || 0;
-                        let stalenessBonus = lastSeen > 0 ? Math.min(((now - lastSeen) / 86400000) * 0.15, 4) : 1; 
+                        let stalenessDays = lastSeen > 0 ? ((now - lastSeen) / 86400000) : 0;
+                        // Fator de Ociosidade: até 7 pontos extras se estiver muito tempo sem ver (peso forte)
+                        let stalenessBonus = lastSeen > 0 ? Math.min(stalenessDays * 0.4, 7.0) : 1.5; 
 
+                        // Fator de Desempenho (Erros): Penalidade grave para % de acerto baixo
                         let perfBonus = 0;
                         if (top.qTotal > 0) {
                             const perf = top.qCorrect / top.qTotal;
-                            if (perf < 0.5) perfBonus = 2.5; 
-                            else if (perf < 0.7) perfBonus = 1.5;
-                            else if (perf >= 0.9) perfBonus = -1.0; 
+                            if (perf < 0.4) perfBonus = 7.0;       // Crítico (<40%)
+                            else if (perf < 0.6) perfBonus = 4.5;  // Ruim (<60%)
+                            else if (perf < 0.8) perfBonus = 2.0;  // Regular (<80%)
+                            else if (perf >= 0.9) perfBonus = -1.5; // Excelente (>90%), cede espaço
                         }
                         
+                        // Fator de Peso da Disciplina: Multiplica a importância natural
+                        let baseWeight = parseFloat(sub.weight) || 3;
+                        let finalPriorityScore = baseWeight + stalenessBonus + perfBonus;
+
                         simTopics.push({
 
                             subId: sub.id, 
@@ -1859,7 +1892,7 @@
                             topicName: top.name, 
                             color: sub.color, 
                             weight: sub.weight || 3, 
-                            bonus: stalenessBonus + perfBonus,
+                            bonus: finalPriorityScore,
                             phases: phases, 
                             simIdx: curIdx, 
                             teoHours: top.teoHours || 2.0,
@@ -1888,17 +1921,20 @@
                 let countRev = currentDayTasks.filter(task => task.phase.startsWith('Revisão')).length;
                 let countQue = currentDayTasks.filter(task => task.phase.startsWith('Questões')).length;
 
-                let minOrderPerSub = {};
+                let nextAvailableOrder = {};
                 simTopics.forEach(t => {
                     if (t.simIdx < t.phases.length) {
-                        if (minOrderPerSub[t.subId] === undefined || t.orderIdx < minOrderPerSub[t.subId]) {
-                            minOrderPerSub[t.subId] = t.orderIdx;
+                        let isScheduledToday = currentDayTasks.some(task => task.topicId === t.topicId);
+                        if (!isScheduledToday) {
+                            if (nextAvailableOrder[t.subId] === undefined || t.orderIdx < nextAvailableOrder[t.subId]) {
+                                nextAvailableOrder[t.subId] = t.orderIdx;
+                            }
                         }
                     }
                 });
 
                 let validTopics = simTopics.filter(t => {
-                    if (t.orderIdx !== minOrderPerSub[t.subId]) return false;
+                    if (t.orderIdx !== nextAvailableOrder[t.subId]) return false;
 
                     if (t.simIdx >= t.phases.length) return false;
                     if (currentDayTasks.some(task => task.topicId === t.topicId)) return false;
@@ -1922,7 +1958,8 @@
                     let phaseBonus = 0;
                     if (t.phases[t.simIdx] === 'Teoria') phaseBonus = 2;
                     else if (t.phases[t.simIdx] === 'Revisão') phaseBonus = 1;
-                    t.score = t.weight + t.bonus + phaseBonus + (Math.random() * 0.4); 
+                    // Agora o t.bonus já contém (baseWeight + stalenessBonus + perfBonus) calculados de forma muito mais agressiva
+                    t.score = t.bonus + phaseBonus + (Math.random() * 0.2);  
                 });
 
                 validTopics.sort((a, b) => b.score - a.score);
