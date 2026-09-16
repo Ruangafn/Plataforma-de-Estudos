@@ -104,6 +104,9 @@
         .modal-content.large { width: 940px; max-width: 95vw; max-height: 90vh; overflow: hidden; }
 
         .cust-list-container { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; padding-right: 10px; margin-top: 10px; max-height: 52vh; }
+        .cust-topic-row.dragging { opacity: 0.5; box-shadow: 0 5px 15px rgba(0,0,0,0.3); transform: scale(0.98); border-color: var(--color-primary); z-index: 10; }
+        .drag-handle { cursor: grab; padding: 0 10px; color: var(--text-secondary); font-size: 16px; user-select: none; }
+        .drag-handle:active { cursor: grabbing; }
         .cust-topic-row { display: flex; align-items: center; gap: 12px; padding: 12px; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; }
         .cust-topic-row.unlisted, .cust-topic-row.completed { opacity: 0.45; background-color: rgba(0,0,0,0.2); }
         .cust-topic-name { flex: 1.5; font-size: 13px; font-weight: 500; }
@@ -1147,6 +1150,93 @@
             renderCustomizeList();
         }
 
+        // --- DRAG AND DROP REORDERING ---
+        let dragSrcCustTopic = null;
+
+        function handleCustTopicDragStart(e) {
+            if (!e.target.classList || !e.target.classList.contains('cust-topic-row')) return;
+            dragSrcCustTopic = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', e.target.getAttribute('data-id'));
+        }
+
+        function handleCustTopicDragOver(e) {
+            e.preventDefault(); // Necessary to allow dropping
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleCustTopicDragEnter(e) {
+            let row = e.target.closest('.cust-topic-row');
+            if (row && row !== dragSrcCustTopic) {
+                row.style.borderTop = '2px solid var(--color-primary)';
+            }
+        }
+
+        function handleCustTopicDragLeave(e) {
+            let row = e.target.closest('.cust-topic-row');
+            if (row && row !== dragSrcCustTopic) {
+                row.style.borderTop = ''; // Reset
+            }
+        }
+
+
+        function moveTopicCust(topicId, direction) {
+            const sub = appData.subjects.find(s => s.id === currentCustSubId);
+            if (!sub) return;
+            const index = sub.topics.findIndex(t => t.id === topicId);
+            if (index < 0) return;
+            
+            const newIndex = index + direction;
+            if (newIndex >= 0 && newIndex < sub.topics.length) {
+                const temp = sub.topics[index];
+                sub.topics[index] = sub.topics[newIndex];
+                sub.topics[newIndex] = temp;
+                renderCustomizeList();
+            }
+        }
+
+        function handleCustTopicDrop(e) {
+            e.stopPropagation(); // Stops the browser from redirecting
+            
+            let row = e.target.closest('.cust-topic-row');
+            if (row && dragSrcCustTopic !== row) {
+                row.style.borderTop = '';
+                
+                const draggedId = dragSrcCustTopic.getAttribute('data-id');
+                const targetId = row.getAttribute('data-id');
+                
+                const sub = appData.subjects.find(s => s.id === currentCustSubId);
+                if (sub) {
+                    const draggedIndex = sub.topics.findIndex(t => t.id === draggedId);
+                    const targetIndex = sub.topics.findIndex(t => t.id === targetId);
+                    
+                    if (draggedIndex > -1 && targetIndex > -1) {
+                        // Remove from old position and insert into new position
+                        const [item] = sub.topics.splice(draggedIndex, 1);
+                        sub.topics.splice(targetIndex, 0, item);
+                        
+                        renderCustomizeList(); // Re-render to reflect changes
+                    }
+                }
+            }
+            if(dragSrcCustTopic) {
+                dragSrcCustTopic.classList.remove('dragging');
+            }
+            return false;
+        }
+
+        document.addEventListener('dragend', function(e) {
+            if (e.target && e.target.classList && e.target.classList.contains('cust-topic-row')) {
+                e.target.classList.remove('dragging');
+                document.querySelectorAll('.cust-topic-row').forEach(row => {
+                    row.style.borderTop = '';
+                });
+            }
+        });
+
+
         function renderCustomizeList() {
             const listContainer = document.getElementById('cust-topics-list');
             if (!listContainer) return;
@@ -1168,7 +1258,12 @@
                 else if(t.status === 'completed') rowClass += ' completed';
                 
                 return `
-                <div class="${rowClass}" data-id="${t.id}">
+                <div class="${rowClass}" data-id="${t.id}" draggable="true" ondragstart="handleCustTopicDragStart(event)" ondragover="handleCustTopicDragOver(event)" ondrop="handleCustTopicDrop(event)" ondragenter="handleCustTopicDragEnter(event)" ondragleave="handleCustTopicDragLeave(event)">
+                    <div class="drag-handle" title="Arraste para reordenar">☰</div>
+                    <div style="display: flex; flex-direction: column; gap: 2px; margin-right: 8px;">
+                        <button class="btn btn-outline" style="padding: 2px 6px; font-size: 10px; line-height: 1;" onclick="moveTopicCust('${t.id}', -1)" title="Mover para Cima">▲</button>
+                        <button class="btn btn-outline" style="padding: 2px 6px; font-size: 10px; line-height: 1;" onclick="moveTopicCust('${t.id}', 1)" title="Mover para Baixo">▼</button>
+                    </div>
                     <div class="cust-topic-name">${t.name}</div>
                     <div class="cust-phases">
                         <label><input type="checkbox" class="c-phase" value="Teoria" ${hasTeo} onchange="handleCustPhaseChange(this)"> Teoria</label>
@@ -2020,64 +2115,78 @@
 
             const perc = qTotal > 0 ? Math.round((qCorrect / qTotal) * 100) : null;
             
-            let timeScore = Math.min(100, days * 4.5 + 10);
-            let accScore = 45;
-            let reason = 'Revisão Periódica';
+            let threshMedia, threshAlta, threshMaxima;
+            let reason = '';
 
-            if (perc !== null) {
-                if (perc < 50) {
-                    accScore = 95;
-                    reason = `🚨 Acertos Críticos (${perc}%)`;
-                } else if (perc < 65) {
-                    accScore = 70;
-                    reason = `⚠️ Desempenho Baixo (${perc}%)`;
-                } else if (perc < 80) {
-                    accScore = 40;
-                    reason = `📘 Rendimento Regular (${perc}%)`;
-                } else {
-                    accScore = 15;
-                    reason = `⭐ Bom Rendimento (${perc}%)`;
-                }
-            } else {
+            if (perc === null) {
+                threshMedia = 5; threshAlta = 12; threshMaxima = 25;
                 reason = '📝 Sem questões resolvidas';
+            } else if (perc >= 90) {
+                threshMedia = 14; threshAlta = 30; threshMaxima = 60;
+                reason = `🏆 Domínio Excelente (${perc}%)`;
+            } else if (perc >= 80) {
+                threshMedia = 7; threshAlta = 15; threshMaxima = 30;
+                reason = `⭐ Bom Rendimento (${perc}%)`;
+            } else if (perc >= 70) {
+                threshMedia = 4; threshAlta = 10; threshMaxima = 20;
+                reason = `📘 Rendimento Regular (${perc}%)`;
+            } else if (perc >= 50) {
+                threshMedia = 2; threshAlta = 5; threshMaxima = 10;
+                reason = `⚠️ Desempenho Baixo (${perc}%)`;
+            } else {
+                threshMedia = 1; threshAlta = 3; threshMaxima = 7;
+                reason = `🚨 Acertos Críticos (${perc}%)`;
             }
-
-            if (days >= 15) {
-                reason = `⏳ Ausência Crítica (${days}d sem ver)`;
-            } else if (days >= 7 && (perc === null || perc >= 65)) {
-                reason = `📅 Revisão Semanal (${days}d sem ver)`;
-            } else if (days === 1 && (perc === null || perc >= 65)) {
-                reason = '🔄 Revisão Ciclo 24h';
-            }
-
-            let totalScore = (timeScore * 0.5) + (accScore * 0.5);
 
             let level, badge, color, bg, border;
 
-            if (totalScore >= 70 || days >= 15 || (perc !== null && perc < 50 && days >= 2)) {
+            if (days >= threshMaxima) {
                 level = 'Máxima';
                 badge = '🔴 Máxima';
                 color = '#ef4444';
                 bg = 'rgba(239, 68, 68, 0.15)';
                 border = '#ef4444';
-            } else if (totalScore >= 50 || days >= 7 || (perc !== null && perc < 65 && days >= 2)) {
+                reason = `⏳ Atraso Crítico | ` + reason;
+            } else if (days >= threshAlta) {
                 level = 'Alta';
                 badge = '🟠 Alta';
                 color = '#f97316';
                 bg = 'rgba(249, 115, 22, 0.15)';
                 border = '#f97316';
-            } else if (totalScore >= 32 || days >= 3) {
+                reason = `📅 Revisão Necessária | ` + reason;
+            } else if (days >= threshMedia) {
                 level = 'Média';
                 badge = '🟡 Média';
                 color = '#f59e0b';
                 bg = 'rgba(245, 158, 11, 0.15)';
                 border = '#f59e0b';
+                reason = `🔄 Manutenção Ideal | ` + reason;
             } else {
                 level = 'Baixa';
                 badge = '🟢 Baixa';
                 color = '#10b981';
                 bg = 'rgba(16, 185, 129, 0.15)';
                 border = '#10b981';
+                if (days === 1) {
+                    reason = '🔄 Revisão Ciclo 24h';
+                } else {
+                    reason = `👍 Recente | ` + reason;
+                }
+            }
+
+            // Normaliza a pontuação de 0 a 100 para ordenação correta da lista
+            let totalScore = 0;
+            if (days >= threshMaxima) {
+                totalScore = 70 + Math.min(30, (days - threshMaxima) * 2);
+            } else if (days >= threshAlta) {
+                let span = Math.max(1, threshMaxima - threshAlta);
+                totalScore = 50 + Math.floor(((days - threshAlta) / span) * 19);
+            } else if (days >= threshMedia) {
+                let span = Math.max(1, threshAlta - threshMedia);
+                totalScore = 32 + Math.floor(((days - threshMedia) / span) * 17);
+            } else {
+                let span = Math.max(1, threshMedia - 1);
+                totalScore = Math.floor(((days - 1) / span) * 31);
             }
 
             return {
