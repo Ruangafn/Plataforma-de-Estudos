@@ -739,7 +739,7 @@
             if (Array.isArray(appData.subjects)) {
                 appData.subjects.forEach(sub => {
                     if (Array.isArray(sub.topics)) {
-                        sub.topics.forEach(top => {
+                        sub.topics.forEach((top, index) => {
                             top.qTotal = 0;
                             top.qCorrect = 0;
                             top.rounds = 0;
@@ -1591,7 +1591,7 @@
             if(!sub || !sub.topics || sub.topics.length === 0) {
                 topicSelect.innerHTML = '<option value="">Nenhum assunto nesta disciplina</option>';
             } else {
-                sub.topics.forEach(top => {
+                sub.topics.forEach((top, index) => {
                     topicSelect.innerHTML += `<option value="${top.id}">${top.name}</option>`;
                 });
             }
@@ -1836,27 +1836,37 @@
             appData.subjects.forEach(sub => {
                 if (sub.hidden) return;
                 const topics = sub.topics || [];
-                topics.forEach(top => {
+                topics.forEach((top, index) => {
                     const phases = top.phases || ['Teoria', 'Revisão', 'Questões'];
                     const curIdx = top.currentPhaseIdx || 0;
                     if (top.status === 'pending' && phases.length > 0 && curIdx < phases.length) {
                         const lastSeen = appData.topicHistory[top.id] || 0;
                         let stalenessBonus = lastSeen > 0 ? Math.min(((now - lastSeen) / 86400000) * 0.15, 4) : 1; 
+
+                        let perfBonus = 0;
+                        if (top.qTotal > 0) {
+                            const perf = top.qCorrect / top.qTotal;
+                            if (perf < 0.5) perfBonus = 2.5; 
+                            else if (perf < 0.7) perfBonus = 1.5;
+                            else if (perf >= 0.9) perfBonus = -1.0; 
+                        }
                         
                         simTopics.push({
+
                             subId: sub.id, 
                             topicId: top.id, 
                             subName: sub.name, 
                             topicName: top.name, 
                             color: sub.color, 
                             weight: sub.weight || 3, 
-                            bonus: stalenessBonus,
+                            bonus: stalenessBonus + perfBonus,
                             phases: phases, 
                             simIdx: curIdx, 
                             teoHours: top.teoHours || 2.0,
                             remainingDur: 0, 
                             currentPart: 1, 
-                            totalParts: 0
+                            totalParts: 0,
+                            orderIdx: index
                         });
                     }
                 });
@@ -1878,7 +1888,18 @@
                 let countRev = currentDayTasks.filter(task => task.phase.startsWith('Revisão')).length;
                 let countQue = currentDayTasks.filter(task => task.phase.startsWith('Questões')).length;
 
+                let minOrderPerSub = {};
+                simTopics.forEach(t => {
+                    if (t.simIdx < t.phases.length) {
+                        if (minOrderPerSub[t.subId] === undefined || t.orderIdx < minOrderPerSub[t.subId]) {
+                            minOrderPerSub[t.subId] = t.orderIdx;
+                        }
+                    }
+                });
+
                 let validTopics = simTopics.filter(t => {
+                    if (t.orderIdx !== minOrderPerSub[t.subId]) return false;
+
                     if (t.simIdx >= t.phases.length) return false;
                     if (currentDayTasks.some(task => task.topicId === t.topicId)) return false;
 
