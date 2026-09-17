@@ -1899,7 +1899,9 @@
                             remainingDur: 0, 
                             currentPart: 1, 
                             totalParts: 0,
-                            orderIdx: index
+                            orderIdx: index,
+                            lastPhaseDay: -99,
+                            rounds: top.rounds || 0
                         });
                     }
                 });
@@ -1937,9 +1939,30 @@
                     if (t.orderIdx !== nextAvailableOrder[t.subId]) return false;
 
                     if (t.simIdx >= t.phases.length) return false;
-                    if (currentDayTasks.some(task => task.topicId === t.topicId)) return false;
-
+                    // Lógica de Espaçamento Inteligente (Gap)
                     let nextPhase = t.phases[t.simIdx];
+                    if (t.lastPhaseDay >= 0) {
+                        let isFirstTime = (t.rounds === 0);
+                        if (nextPhase === 'Revisão') {
+                            // Espaçamento Teoria -> Revisão: 2 dias na primeira vez, 1 dia nas próximas
+                            let requiredGap = isFirstTime ? 2 : 1;
+                            if (currentDayIndex < t.lastPhaseDay + requiredGap) return false;
+                        } else if (nextPhase === 'Questões') {
+                            // Espaçamento Revisão -> Questões: 1 dia na primeira vez, 0 dias nas próximas (mesmo dia)
+                            let requiredGap = isFirstTime ? 1 : 0;
+                            if (currentDayIndex < t.lastPhaseDay + requiredGap) return false;
+                        }
+                    }
+
+                    // Se não foi bloqueado pelo gap temporal, verificamos se já tem algo desse assunto HOUJE.
+                    // Para evitar duas tarefas do mesmo assunto no mesmo dia, a menos que seja (Revisão + Questões) em um recomeço (rounds > 0).
+                    let hasToday = currentDayTasks.some(task => task.topicId === t.topicId);
+                    if (hasToday) {
+                        let isFirstTime = (t.rounds === 0);
+                        if (isFirstTime) return false; // Primeira vez nunca faz duas fases no mesmo dia
+                        if (nextPhase !== 'Questões') return false; // Se for reestudo, só permite acumular se a próxima for Questões
+                    }
+
                     if (nextPhase === 'Teoria' && countTeo >= maxTeoDay) return false;
                     if (nextPhase === 'Revisão' && countRev >= maxRevDay) return false;
                     if (nextPhase === 'Questões' && countQue >= maxQueDay) return false;
@@ -1997,6 +2020,7 @@
                 if (isLastPart) {
                     picked.simIdx++;
                     picked.remainingDur = 0;
+                    picked.lastPhaseDay = currentDayIndex;
                     picked.totalParts = 0;
                 } else {
                     picked.currentPart++;
