@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "StudyPlanner PRO - Mentoria & Ciclo de Estudos",
+  "description": "Plataforma completa de organização de estudos com metodologia de mentoria, ciclo inteligente de teoria/revisão/questões, edital verticalizado, rever assuntos, replanejamento, caderno de erros e correção analítica de redação padrão Cesgranrio.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
