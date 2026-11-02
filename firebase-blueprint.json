@@ -1,0 +1,38 @@
+{
+  "entities": {
+    "UserProfileData": {
+      "title": "UserProfileData",
+      "description": "Dados completos do perfil de estudos do usuário",
+      "type": "object",
+      "properties": {
+        "dataString": {
+          "type": "string",
+          "description": "Payload serializado em JSON com todas as matérias, tópicos, ciclo e progresso"
+        }
+      },
+      "required": ["dataString"]
+    },
+    "UserMeta": {
+      "title": "UserMeta",
+      "description": "Metadados da conta do usuário com lista de perfis disponíveis",
+      "type": "object",
+      "properties": {
+        "profiles": {
+          "type": "array",
+          "description": "Nomes dos perfis cadastrados pelo usuário"
+        }
+      },
+      "required": ["profiles"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/profiles/{profileKey}": {
+      "schema": "UserProfileData",
+      "description": "Armazena o estado e progresso de estudos de cada perfil do usuário"
+    },
+    "/users/{userId}/meta/info": {
+      "schema": "UserMeta",
+      "description": "Lista de perfis criados e metadados da conta"
+    }
+  }
+}

@@ -339,6 +339,7 @@
             </div>
             <div class="late-banner-actions">
                 <button class="btn btn-warning" onclick="openReplanModal()">🔄 Replanejamento Inteligente</button>
+                <button class="btn btn-outline" onclick="realignCycleToToday()" style="border-color: rgba(255,255,255,0.3);" title="Realinha as datas do cronograma a partir de hoje">📅 Realinhar com Hoje</button>
                 <button class="btn btn-outline" onclick="dismissLateBanner()">Ignorar</button>
             </div>
         </div>
@@ -365,9 +366,12 @@
             </div>
 
             <div class="panel" style="border-color: var(--color-primary);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
                     <h3>Tarefas Ativas de Hoje (<span id="today-name" style="color: var(--color-primary);">Nenhum Ciclo</span>)</h3>
-                    <button class="btn btn-primary" id="btn-extra-task" onclick="openExtraTaskModal()" style="display: none;">+ Adicionar Tarefa Extra</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-warning" id="btn-replan-today" onclick="openReplanModal()" style="display: none;" title="Replanejar metas de hoje ou diluir pendências">🔄 Replanejar Metas</button>
+                        <button class="btn btn-primary" id="btn-extra-task" onclick="openExtraTaskModal()" style="display: none;">+ Adicionar Tarefa Extra</button>
+                    </div>
                 </div>
                 
                 <div class="table-responsive" id="tasks-table-container">
@@ -389,6 +393,19 @@
                 <div id="confirmation-box" class="confirmation-box">
                     <h4 style="color: var(--color-success); font-size: 18px; text-align: center;">🎉 Excelente! Metas do dia concluídas.</h4>
                     <button class="btn btn-success" onclick="commitTodayProgress()">✓ Finalizar o Dia e Avançar</button>
+                </div>
+
+                <div id="partial-day-box" style="display: none; margin-top: 16px; padding: 14px 18px; border-radius: 8px; background: rgba(245, 158, 11, 0.08); border: 1px dashed var(--color-warning); justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <div style="font-weight: 600; color: var(--color-warning); font-size: 14px; margin-bottom: 2px;">⚡ Dia em Andamento</div>
+                        <div style="font-size: 13px; color: var(--text-secondary);" id="partial-day-msg">
+                            Conclua as tarefas acima ou replaneje as metas pendentes para os próximos dias sem sobrecarga.
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn btn-warning btn-icon" onclick="openReplanModal()">🔄 Replanejar Metas</button>
+                        <button class="btn btn-outline" onclick="finishDayWithPending()">⏩ Encerrar Dia & Replanejar</button>
+                    </div>
                 </div>
 
                 <div id="day-completed-box" class="day-completed-state">
@@ -1015,9 +1032,10 @@
                 </div>
             </div>
 
-            <div style="display: flex; gap: 10px;">
-                <button class="btn btn-success" style="flex: 2;" onclick="saveCycleSettings()">✓ Salvar Configurações</button>
-                <button class="btn btn-outline" style="flex: 1;" onclick="closeCycleSettingsModal()">Fechar</button>
+            <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+                <button class="btn btn-warning" style="flex: 1.5;" onclick="saveAndReplanCycleSettings()">⚡ Salvar & Replanejar</button>
+                <button class="btn btn-success" style="flex: 1;" onclick="saveCycleSettings()">✓ Apenas Salvar</button>
+                <button class="btn btn-outline" style="flex: 0.8;" onclick="closeCycleSettingsModal()">Fechar</button>
             </div>
 
             <div style="border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
@@ -1554,6 +1572,9 @@
             } catch(e) {
                 console.warn("Erro ao gravar dados no localStorage", e);
             }
+            if (typeof window.triggerFirebaseSync === 'function') {
+                window.triggerFirebaseSync();
+            }
         }
 
         function switchTab(tabId) {
@@ -1596,12 +1617,19 @@
             }
         }
 
-        // --- SISTEMA DE VERIFICAÇÃO DE ATRASO ---
+        // --- SISTEMA DE VERIFICAÇÃO DE ATRASO E REPACTUAÇÃO ---
+        let lateBannerDismissed = false;
+
         function checkOverdueStatus() {
             const banner = document.getElementById('late-warning-banner');
             if (!banner) return;
 
-            if (!appData.cycle || !appData.cycle.active || !appData.cycle.startDate) {
+            if (lateBannerDismissed) {
+                banner.style.display = 'none';
+                return;
+            }
+
+            if (!appData.cycle || !appData.cycle.active || !appData.cycle.startDate || !Array.isArray(appData.cycle.days)) {
                 banner.style.display = 'none';
                 return;
             }
@@ -1621,36 +1649,67 @@
             const expectedDate = new Date(start);
             expectedDate.setDate(start.getDate() + activeIdx);
 
-            if (today.getTime() > expectedDate.getTime()) {
+            const isCalendarLate = today.getTime() > expectedDate.getTime();
+            
+            // Verifica se há tarefas pendentes em dias anteriores
+            let hasPastIncomplete = false;
+            let pastPendingCount = 0;
+            for (let d = 0; d < activeIdx; d++) {
+                const dayTasks = appData.cycle.days[d] || [];
+                dayTasks.forEach(t => {
+                    if (!t.done) {
+                        hasPastIncomplete = true;
+                        pastPendingCount++;
+                    }
+                });
+            }
+
+            if (isCalendarLate || hasPastIncomplete) {
                 banner.style.display = 'flex';
+                const subtextEl = banner.querySelector('.late-banner-info div div');
+                if (subtextEl) {
+                    if (isCalendarLate && hasPastIncomplete) {
+                        subtextEl.innerText = `Você possui ${pastPendingCount} tarefa(s) pendente(s) de dias anteriores e seu cronograma está desfasado do calendário.`;
+                    } else if (hasPastIncomplete) {
+                        subtextEl.innerText = `Você possui ${pastPendingCount} tarefa(s) não concluída(s) em dias anteriores do seu ciclo.`;
+                    } else {
+                        subtextEl.innerText = `O cronograma está desfasado da data de hoje. Clique em Replanejar para realinhar a partir de hoje.`;
+                    }
+                }
             } else {
                 banner.style.display = 'none';
             }
         }
 
         function realignCycleToToday() {
-            customConfirm("Isso ajustará as datas do cronograma restante a partir da data de hoje, mantendo todo o seu histórico já concluído. Deseja prosseguir?", () => {
-            const now = new Date();
-            const activeIdx = appData.cycle.currentCycleDayIndex || 0;
-            
-            const newStart = new Date(now);
-            newStart.setDate(now.getDate() - activeIdx);
-            appData.cycle.startDate = newStart.toISOString();
-
-            for(let i = 0; i < appData.cycle.days.length; i++) {
-                let d = new Date(newStart);
-                d.setDate(newStart.getDate() + i);
-                appData.cycle.dateLabels[i] = `${dayNames[d.getDay()]}, ${d.toLocaleDateString('pt-BR').substring(0,5)}`;
+            if (!appData.cycle || !appData.cycle.active) {
+                return customAlert("Gere um ciclo primeiro antes de realinhar.");
             }
+            customConfirm("Isso sincronizará as datas do cronograma a partir de hoje, mantendo todo o seu histórico já concluído intacto. Deseja prosseguir?", () => {
+                const now = new Date();
+                now.setHours(0, 0, 0, 0);
+                const activeIdx = appData.cycle.currentCycleDayIndex || 0;
+                
+                const newStart = new Date(now);
+                newStart.setDate(now.getDate() - activeIdx);
+                appData.cycle.startDate = newStart.toISOString();
 
-            saveData();
-            checkOverdueStatus();
-            renderAll();
-            customAlert("Datas do ciclo realinhadas para hoje com sucesso!");
+                for(let i = 0; i < appData.cycle.days.length; i++) {
+                    let d = new Date(newStart);
+                    d.setDate(newStart.getDate() + i);
+                    appData.cycle.dateLabels[i] = `${dayNames[d.getDay()]}, ${d.toLocaleDateString('pt-BR').substring(0,5)}`;
+                }
+
+                lateBannerDismissed = false;
+                saveData();
+                checkOverdueStatus();
+                renderAll();
+                customAlert("Datas do ciclo realinhadas para a data de hoje com sucesso!");
             });
         }
 
         function dismissLateBanner() {
+            lateBannerDismissed = true;
             const banner = document.getElementById('late-warning-banner');
             if (banner) banner.style.display = 'none';
         }
@@ -2615,12 +2674,15 @@
             const tbody = document.getElementById('today-tasks-body');
             const confirmBox = document.getElementById('confirmation-box');
             const dayCompletedBox = document.getElementById('day-completed-box');
+            const partialBox = document.getElementById('partial-day-box');
             const btnExtra = document.getElementById('btn-extra-task');
+            const btnReplanToday = document.getElementById('btn-replan-today');
             
             if (!tbody) return;
             tbody.innerHTML = ''; 
             if (confirmBox) confirmBox.style.display = 'none'; 
             if (dayCompletedBox) dayCompletedBox.style.display = 'none';
+            if (partialBox) partialBox.style.display = 'none';
             const tableCont = document.getElementById('tasks-table-container');
             if (tableCont) tableCont.style.display = 'block';
 
@@ -2628,6 +2690,7 @@
                 const nameEl = document.getElementById('today-name');
                 if (nameEl) nameEl.innerText = "Nenhum Ciclo Ativo"; 
                 if (btnExtra) btnExtra.style.display = 'none';
+                if (btnReplanToday) btnReplanToday.style.display = 'none';
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="6" style="text-align: center; padding: 30px; color: var(--text-secondary);">
@@ -2645,10 +2708,12 @@
                 if (tableCont) tableCont.style.display = 'none'; 
                 if (dayCompletedBox) dayCompletedBox.style.display = 'flex'; 
                 if (btnExtra) btnExtra.style.display = 'none';
+                if (btnReplanToday) btnReplanToday.style.display = 'none';
                 return; 
             }
 
             if (btnExtra) btnExtra.style.display = 'block';
+            if (btnReplanToday) btnReplanToday.style.display = 'block';
             const nameEl = document.getElementById('today-name');
             if (nameEl) nameEl.innerText = appData.cycle.dateLabels[activeIdx] || `Dia ${activeIdx + 1}`;
             
@@ -2661,8 +2726,12 @@
             }
 
             let allChecked = true;
+            let pendingCount = 0;
             currentTasks.forEach((task, index) => {
-                if (!task.done) allChecked = false;
+                if (!task.done) {
+                    allChecked = false;
+                    pendingCount++;
+                }
                 tbody.innerHTML += `
                     <tr class="${task.done ? 'staged' : ''}">
                         <td><span class="color-dot" style="background-color: ${task.color}"></span>${index + 1}</td>
@@ -2677,7 +2746,19 @@
                 `;
             });
             
-            if (allChecked && confirmBox) confirmBox.style.display = 'flex';
+            if (allChecked) {
+                if (confirmBox) confirmBox.style.display = 'flex';
+                if (partialBox) partialBox.style.display = 'none';
+            } else {
+                if (confirmBox) confirmBox.style.display = 'none';
+                if (partialBox) {
+                    partialBox.style.display = 'flex';
+                    const msgEl = document.getElementById('partial-day-msg');
+                    if (msgEl) {
+                        msgEl.innerText = `Você possui ${pendingCount} meta(s) pendente(s) hoje. Você pode concluí-las ou usar o Replanejamento para redistribuí-las nos próximos dias sem estresse.`;
+                    }
+                }
+            }
         }
 
         function updateDashboardStats() {
@@ -3094,7 +3175,10 @@
                                 </div>
                                 <div style="font-size:11px; color:var(--text-secondary); margin-top:2px;">${t.topic}</div>
                             </div>
-                            <input type="checkbox" class="big-chk" ${t.done ? 'checked' : ''} ${isLocked ? 'disabled' : ''} onchange="toggleTaskDone(${dIdx}, '${t.id}')">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                ${isDraggable ? `<button type="button" class="btn btn-outline" style="padding: 1px 6px; font-size: 10px; line-height: 1.2; border-color: rgba(255,255,255,0.2); background: rgba(0,0,0,0.3);" onclick="openMoveTaskModal(${dIdx}, '${t.id}')" title="Mover meta para outro dia">📅 Mover</button>` : ''}
+                                <input type="checkbox" class="big-chk" ${t.done ? 'checked' : ''} ${isLocked ? 'disabled' : ''} onchange="toggleTaskDone(${dIdx}, '${t.id}')">
+                            </div>
                         </div>
                         <div style="display:flex; gap: 6px; align-items:center;">
                             <span class="badge-fase">${t.phase}</span>
@@ -3127,36 +3211,127 @@
 
         let currentReplanStrategy = 'gradual';
 
-        // --- 1. REPLANEJAMENTO INTELIGENTE DE ATRASOS ---
-        function openReplanModal() {
+        // --- 1. REPLANEJAMENTO INTELIGENTE DE METAS E ATRASOS ---
+        function getReplanDiagnostics() {
             if (!appData.cycle || !appData.cycle.active || !Array.isArray(appData.cycle.days)) {
-                return customAlert("Gere um ciclo primeiro na aba 'Ciclo & Calendário' antes de usar o Replanejamento Inteligente.");
+                return null;
             }
 
             const curIdx = appData.cycle.currentCycleDayIndex || 0;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let daysPassed = 0;
+            if (appData.cycle.startDate) {
+                const start = new Date(appData.cycle.startDate);
+                start.setHours(0, 0, 0, 0);
+                daysPassed = Math.max(0, Math.floor((today.getTime() - start.getTime()) / 86400000));
+            }
+
+            // Dias considerados passados:
+            // - Qualquer dia com índice < curIdx (já ultrapassado pelo aluno)
+            // - Qualquer dia cuja data no calendário seja anterior a hoje
+            const pastDayLimit = Math.max(curIdx, Math.min(daysPassed, appData.cycle.days.length));
+
             let overdueTasks = [];
             let overdueHours = 0;
 
-            for (let d = 0; d < curIdx; d++) {
+            for (let d = 0; d < pastDayLimit; d++) {
                 const dayTasks = appData.cycle.days[d] || [];
                 dayTasks.forEach(t => {
                     if (!t.done) {
-                        overdueTasks.push(t);
+                        overdueTasks.push({ ...t, originDayIndex: d });
                         overdueHours += (t.durationNum || 1.0);
                     }
                 });
             }
 
+            // Metas pendentes do dia ativo atual (excluindo as que já foram marcadas como atrasadas)
+            const overdueIds = new Set(overdueTasks.map(t => t.id));
+            let todayPendingTasks = [];
+            let todayPendingHours = 0;
+            if (curIdx < appData.cycle.days.length) {
+                const activeTasks = appData.cycle.days[curIdx] || [];
+                activeTasks.forEach(t => {
+                    if (!t.done && !overdueIds.has(t.id)) {
+                        todayPendingTasks.push({ ...t, originDayIndex: curIdx });
+                        todayPendingHours += (t.durationNum || 1.0);
+                    }
+                });
+            }
+
+            const isCalendarLag = daysPassed > curIdx;
+
+            return {
+                curIdx,
+                daysPassed,
+                pastDayLimit,
+                overdueTasks,
+                overdueHours,
+                todayPendingTasks,
+                todayPendingHours,
+                isCalendarLag
+            };
+        }
+
+        function openReplanModal() {
+            if (!appData.cycle || !appData.cycle.active || !Array.isArray(appData.cycle.days)) {
+                return customAlert("Gere um ciclo primeiro na aba 'Ciclo & Calendário' antes de usar o Replanejamento Inteligente.");
+            }
+
+            const diag = getReplanDiagnostics();
+            if (!diag) return;
+
             const diagEl = document.getElementById('replan-diag-text');
+            const diagDetails = document.getElementById('replan-details-text');
+            const includeTodayBox = document.getElementById('replan-today-option');
+            const includeTodayChk = document.getElementById('replan-include-today');
+            const includeTodayLbl = document.getElementById('replan-include-today-label');
+
             if (diagEl) {
-                if (overdueTasks.length === 0) {
-                    diagEl.innerHTML = `<span style="color: var(--color-success);">Tudo em dia! Nenhuma tarefa atrasada de dias anteriores.</span>`;
+                if (diag.overdueTasks.length === 0 && diag.todayPendingTasks.length === 0) {
+                    diagEl.innerHTML = `<span style="color: var(--color-success);">Tudo em dia! Nenhuma meta atrasada.</span>`;
+                    if (diagDetails) {
+                        if (diag.isCalendarLag) {
+                            diagDetails.innerHTML = `Seu calendário está ${diag.daysPassed - diag.curIdx} dia(s) à frente. Você pode usar a <strong>Estratégia 2</strong> para realinhar as datas com a data de hoje sem perder metas.`;
+                        } else {
+                            diagDetails.innerText = "Todas as suas metas planejadas até hoje foram cumpridas com sucesso.";
+                        }
+                    }
+                    if (includeTodayBox) includeTodayBox.style.display = 'none';
+                } else if (diag.overdueTasks.length > 0) {
+                    diagEl.innerText = `${diag.overdueTasks.length} tarefas pendentes em atraso (${formatHours(diag.overdueHours)} acumuladas)`;
+                    if (diagDetails) {
+                        diagDetails.innerText = `Detectadas pendências em dias anteriores que precisam ser replanejadas.`;
+                    }
+                    if (includeTodayBox) {
+                        if (diag.todayPendingTasks.length > 0) {
+                            includeTodayBox.style.display = 'flex';
+                            if (includeTodayLbl) {
+                                includeTodayLbl.innerText = `Incluir também ${diag.todayPendingTasks.length} meta(s) pendente(s) de hoje (${formatHours(diag.todayPendingHours)})`;
+                            }
+                            if (includeTodayChk) includeTodayChk.checked = true;
+                        } else {
+                            includeTodayBox.style.display = 'none';
+                        }
+                    }
                 } else {
-                    diagEl.innerText = `${overdueTasks.length} tarefas pendentes em atraso (${formatHours(overdueHours)} acumuladas)`;
+                    // Apenas metas pendentes de hoje
+                    diagEl.innerHTML = `<span style="color: var(--color-warning);">${diag.todayPendingTasks.length} metas pendentes no dia de hoje (${formatHours(diag.todayPendingHours)})</span>`;
+                    if (diagDetails) {
+                        diagDetails.innerText = `Você pode redistribuir as metas que não conseguirá cumprir hoje ao longo dos próximos dias de estudo.`;
+                    }
+                    if (includeTodayBox) {
+                        includeTodayBox.style.display = 'flex';
+                        if (includeTodayLbl) {
+                            includeTodayLbl.innerText = `Redistribuir as ${diag.todayPendingTasks.length} metas pendentes de hoje`;
+                        }
+                        if (includeTodayChk) includeTodayChk.checked = true;
+                    }
                 }
             }
 
-            selectReplanStrategy('gradual');
+            selectReplanStrategy(currentReplanStrategy || 'gradual');
             const modal = document.getElementById('modal-replanejar');
             if (modal) modal.style.display = 'flex';
         }
@@ -3184,66 +3359,236 @@
 
         function applyReplanStrategy() {
             if (!appData.cycle || !appData.cycle.active) return closeReplanModal();
-            const curIdx = appData.cycle.currentCycleDayIndex || 0;
-            
-            let overdueTasks = [];
-            for (let d = 0; d < curIdx; d++) {
-                const dayTasks = appData.cycle.days[d] || [];
-                const remaining = [];
-                dayTasks.forEach(t => {
-                    if (!t.done) {
-                        overdueTasks.push(t);
-                    } else {
-                        remaining.push(t);
+            const diag = getReplanDiagnostics();
+            if (!diag) return closeReplanModal();
+
+            const curIdx = diag.curIdx;
+            const includeTodayChk = document.getElementById('replan-include-today');
+            const includeToday = includeTodayChk ? includeTodayChk.checked : false;
+
+            // Coleta as tarefas para replanejar sem duplicidades
+            const seenTaskIds = new Set();
+            let tasksToReplan = [];
+            diag.overdueTasks.forEach(t => {
+                if (!seenTaskIds.has(t.id)) {
+                    seenTaskIds.add(t.id);
+                    tasksToReplan.push(t);
+                }
+            });
+            if (includeToday && diag.todayPendingTasks.length > 0) {
+                diag.todayPendingTasks.forEach(t => {
+                    if (!seenTaskIds.has(t.id)) {
+                        seenTaskIds.add(t.id);
+                        tasksToReplan.push(t);
                     }
                 });
-                appData.cycle.days[d] = remaining; // remove do passado para realocar
             }
+
+            // Remove as tarefas não concluídas que serão realocadas de seus dias originais
+            const taskIdsToReplan = new Set(tasksToReplan.map(t => t.id));
+            const maxDayToCheck = includeToday ? Math.max(diag.pastDayLimit, curIdx + 1) : diag.pastDayLimit;
+
+            for (let d = 0; d < maxDayToCheck; d++) {
+                if (Array.isArray(appData.cycle.days[d])) {
+                    appData.cycle.days[d] = appData.cycle.days[d].filter(t => !taskIdsToReplan.has(t.id));
+                }
+            }
+
+            // Remove a propriedade auxiliar originDayIndex
+            const cleanTasks = tasksToReplan.map(t => {
+                const { originDayIndex, ...rest } = t;
+                return rest;
+            });
+
+            // Dia alvo ativo: se o usuário estava no passado, agora o dia ativo alinha com o curIdx a partir de hoje
+            const targetActiveIdx = curIdx;
+
+            // Realinha as datas do cronograma para que o dia ativo seja HOJE
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const newStart = new Date(today);
+            newStart.setDate(today.getDate() - targetActiveIdx);
+            appData.cycle.startDate = newStart.toISOString();
 
             if (currentReplanStrategy === 'gradual') {
                 const daysCount = parseInt(document.getElementById('replan-days-select').value) || 4;
-                if (overdueTasks.length > 0) {
-                    // Distribui as tarefas nos próximos N dias
-                    overdueTasks.forEach((t, i) => {
-                        const targetDayIdx = curIdx + (i % daysCount);
+                if (cleanTasks.length > 0) {
+                    // Distribui as tarefas a partir do dia ativo nos próximos N dias
+                    cleanTasks.forEach((t, i) => {
+                        const targetDayIdx = targetActiveIdx + (i % daysCount);
                         while (appData.cycle.days.length <= targetDayIdx) {
                             appData.cycle.days.push([]);
-                            appData.cycle.dateLabels.push(`Dia ${appData.cycle.days.length}`);
+                            appData.cycle.completedDays.push(false);
                         }
                         appData.cycle.days[targetDayIdx].push(t);
                     });
+                    customAlert(`Sucesso! ${cleanTasks.length} meta(s) foram diluídas suavemente nos próximos ${daysCount} dias.`);
+                } else {
+                    customAlert("Cronograma realinhado com sucesso a partir de hoje!");
                 }
-                customAlert(`Sucesso! ${overdueTasks.length} tarefas atrasadas foram diluídas suavemente nos próximos ${daysCount} dias.`);
             } else if (currentReplanStrategy === 'shift') {
-                // Realinha as datas a partir de hoje
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                appData.cycle.startDate = today.getTime();
-                for (let i = 0; i < appData.cycle.dateLabels.length; i++) {
-                    const d = new Date(today.getTime() + (i * 86400000));
-                    appData.cycle.dateLabels[i] = `${dayNames[d.getDay()]} (${d.getDate()}/${d.getMonth()+1})`;
-                }
-                // Se havia tarefas atrasadas, move para hoje
-                if (overdueTasks.length > 0) {
-                    overdueTasks.forEach(t => appData.cycle.days[curIdx].push(t));
+                // Realinha o cronograma a partir de hoje e move pendências para hoje
+                if (cleanTasks.length > 0) {
+                    cleanTasks.forEach(t => {
+                        if (!Array.isArray(appData.cycle.days[targetActiveIdx])) {
+                            appData.cycle.days[targetActiveIdx] = [];
+                        }
+                        appData.cycle.days[targetActiveIdx].push(t);
+                    });
                 }
                 customAlert("Ciclo empurrado para frente com sucesso! O cronograma recomeça alinhado com a data de hoje.");
             } else if (currentReplanStrategy === 'today') {
-                if (overdueTasks.length > 0) {
-                    overdueTasks.forEach(t => appData.cycle.days[curIdx].push(t));
-                    customAlert(`Maratona ativada: ${overdueTasks.length} tarefas acumuladas foram concentradas no dia de hoje.`);
+                if (cleanTasks.length > 0) {
+                    cleanTasks.forEach(t => {
+                        if (!Array.isArray(appData.cycle.days[targetActiveIdx])) {
+                            appData.cycle.days[targetActiveIdx] = [];
+                        }
+                        appData.cycle.days[targetActiveIdx].push(t);
+                    });
+                    customAlert(`Maratona ativada: ${cleanTasks.length} meta(s) acumuladas foram concentradas no dia de hoje.`);
                 } else {
                     customAlert("Nenhuma tarefa pendente para concentrar.");
                 }
             } else if (currentReplanStrategy === 'clean') {
-                // Descarta pendências passadas
-                customAlert("Pendências anteriores descartadas. Seu ciclo foi repactuado a partir de hoje.");
+                // As tarefas já foram removidas dos dias anteriores acima, zerando pendências
+                customAlert("Pendências anteriores descartadas. Seu ciclo foi repactuado com foco nas metas de hoje em diante!");
             }
 
+            // Garante que o total de dias seja múltiplo de 7 para exibição correta no calendário
+            while (appData.cycle.days.length % 7 !== 0) {
+                appData.cycle.days.push([]);
+                appData.cycle.completedDays.push(false);
+            }
+
+            // Recalcula todos os dateLabels com o padrão oficial
+            appData.cycle.dateLabels = [];
+            for (let i = 0; i < appData.cycle.days.length; i++) {
+                let d = new Date(newStart);
+                d.setDate(newStart.getDate() + i);
+                appData.cycle.dateLabels.push(`${dayNames[d.getDay()]}, ${d.toLocaleDateString('pt-BR').substring(0,5)}`);
+            }
+
+            lateBannerDismissed = false;
             dismissLateBanner();
             closeReplanModal();
             saveData();
+            checkOverdueStatus();
             renderAll();
+        }
+
+        // --- ENCERRAMENTO COM PENDÊNCIAS E REPLANEJAMENTO ---
+        function finishDayWithPending() {
+            if (!appData.cycle || !appData.cycle.active) return;
+            const activeIdx = appData.cycle.currentCycleDayIndex || 0;
+            const currentTasks = appData.cycle.days[activeIdx] || [];
+            const pendingTasks = currentTasks.filter(t => !t.done);
+
+            customConfirm(`Você possui ${pendingTasks.length} meta(s) não concluída(s) hoje. Deseja encerrar o dia e abrir o Replanejamento para redistribuí-las nos próximos dias?`, () => {
+                if (!appData.cycle.completedDays) appData.cycle.completedDays = [];
+                appData.cycle.completedDays[activeIdx] = true;
+                appData.streak = (appData.streak || 0) + 1;
+                appData.cycle.currentCycleDayIndex = activeIdx + 1;
+                saveData();
+                renderAll();
+                setTimeout(() => {
+                    openReplanModal();
+                }, 150);
+            });
+        }
+
+        function saveAndReplanCycleSettings() {
+            saveCycleSettings();
+            setTimeout(() => {
+                openReplanModal();
+            }, 100);
+        }
+
+        // --- SISTEMA DE MOVER META INDIVIDUAL (MODAL TOUCH/CLICK) ---
+        let currentMovingTask = null;
+
+        function openMoveTaskModal(dayIndex, taskId) {
+            if (!appData.cycle || !Array.isArray(appData.cycle.days)) return;
+            const dayTasks = appData.cycle.days[dayIndex] || [];
+            const task = dayTasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            currentMovingTask = { fromDayIndex: dayIndex, taskId: taskId };
+
+            const infoEl = document.getElementById('move-task-info');
+            if (infoEl) {
+                infoEl.innerHTML = `
+                    <div style="font-weight: 700; color: ${task.color}; font-size: 14px; margin-bottom: 4px;">${task.subjectName}</div>
+                    <div style="font-size: 13px; color: #fff; margin-bottom: 6px;">${task.topic}</div>
+                    <div style="display: flex; gap: 8px; font-size: 11px;">
+                        <span class="badge-fase">${task.phase}</span>
+                        <span class="duration-tag">${task.durationStr}</span>
+                        <span style="color: var(--text-secondary);">Dia atual: ${appData.cycle.dateLabels[dayIndex] || `Dia ${dayIndex + 1}`}</span>
+                    </div>
+                `;
+            }
+
+            const selectEl = document.getElementById('move-task-select-day');
+            if (selectEl) {
+                selectEl.innerHTML = '';
+                for (let i = 0; i < appData.cycle.days.length; i++) {
+                    const isCompleted = appData.cycle.completedDays && appData.cycle.completedDays[i];
+                    const isCurrent = i === dayIndex;
+                    const label = appData.cycle.dateLabels[i] || `Dia ${i + 1}`;
+                    
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.disabled = isCompleted;
+                    opt.text = `${label}${isCompleted ? ' (Concluído - Bloqueado)' : ''}${isCurrent ? ' (Dia Atual da Meta)' : ''}`;
+                    if (i === dayIndex + 1 && !isCompleted) opt.selected = true;
+                    selectEl.appendChild(opt);
+                }
+            }
+
+            const modal = document.getElementById('modal-move-task');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeMoveTaskModal() {
+            const modal = document.getElementById('modal-move-task');
+            if (modal) modal.style.display = 'none';
+            currentMovingTask = null;
+        }
+
+        function confirmMoveTaskToDay() {
+            if (!currentMovingTask) return;
+            const selectEl = document.getElementById('move-task-select-day');
+            if (!selectEl) return;
+            const targetDayIndex = parseInt(selectEl.value);
+            if (isNaN(targetDayIndex)) return;
+
+            const fromDayIndex = currentMovingTask.fromDayIndex;
+            const taskId = currentMovingTask.taskId;
+
+            if (fromDayIndex === targetDayIndex) {
+                closeMoveTaskModal();
+                return;
+            }
+
+            if (appData.cycle.completedDays && appData.cycle.completedDays[targetDayIndex]) {
+                return customAlert("Este dia já foi concluído e não pode receber novas tarefas.");
+            }
+
+            const fromTasks = appData.cycle.days[fromDayIndex];
+            if (!Array.isArray(fromTasks)) return;
+            const taskIdx = fromTasks.findIndex(t => t.id === taskId);
+            if (taskIdx === -1) return;
+
+            const [movedTask] = fromTasks.splice(taskIdx, 1);
+            if (!Array.isArray(appData.cycle.days[targetDayIndex])) {
+                appData.cycle.days[targetDayIndex] = [];
+            }
+            appData.cycle.days[targetDayIndex].push(movedTask);
+
+            saveData();
+            closeMoveTaskModal();
+            renderAll();
+            customAlert(`Meta movida para ${appData.cycle.dateLabels[targetDayIndex] || `Dia ${targetDayIndex + 1}`} com sucesso!`);
         }
 
         // --- 2. RAIO-X DA MENTORIA NO DASHBOARD ---
@@ -3402,7 +3747,8 @@
         function renderReverAssuntosTab() {
             const filterSubj = document.getElementById('rever-filter-subj');
             const filterStatus = document.getElementById('rever-filter-status') ? document.getElementById('rever-filter-status').value : 'ALL';
-            const searchQuery = document.getElementById('rever-search') ? document.getElementById('rever-search').value.toLowerCase().trim() : '';
+            const searchEl = document.getElementById('rever-search');
+            const searchQuery = searchEl && searchEl.value ? searchEl.value.toLowerCase().trim() : '';
             const tbody = document.getElementById('rever-table-body');
             if (!tbody) return;
 
@@ -4976,7 +5322,7 @@
             const textarea = document.getElementById('red-texto-textarea');
             if (!textarea) return;
 
-            const text = textarea.value;
+            const text = textarea.value || '';
             const palavras = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
             const paragrafos = text.trim() ? text.split(/\n+/).filter(p => p.trim().length > 0).length : 0;
 
@@ -5672,20 +6018,30 @@
     <div id="modal-replanejar" class="modal-overlay">
         <div class="modal-content" style="width: 620px; max-width: 95vw;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h3 style="color: var(--color-warning); margin-bottom: 0;">🔄 Replanejamento Inteligente de Atrasos</h3>
+                <h3 style="color: var(--color-warning); margin-bottom: 0;">🔄 Replanejamento Inteligente de Metas</h3>
                 <button class="btn btn-outline btn-icon" onclick="closeReplanModal()">✕</button>
             </div>
             <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-                Atrasou suas metas? Não desanime! A metodologia de mentoria permite reorganizar seu ciclo sem estresse e sem sobrecarregar sua rotina.
+                Atrasou ou não conseguiu cumprir todas as metas? A metodologia de mentoria permite reorganizar seu ciclo de estudos sem estresse e sem sobrecarregar sua rotina.
             </p>
 
             <!-- Diagnóstico do Atraso -->
-            <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <span style="font-size: 12px; color: #fca5a5; font-weight: 600; text-transform: uppercase;">Diagnóstico de Pendências</span>
-                    <div style="font-size: 15px; font-weight: 700; color: #f87171;" id="replan-diag-text">0 tarefas pendentes (0h acumuladas)</div>
+            <div id="replan-diag-box" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 14px 16px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span style="font-size: 12px; color: #fca5a5; font-weight: 600; text-transform: uppercase;">Diagnóstico de Pendências</span>
+                        <div style="font-size: 15px; font-weight: 700; color: #f87171;" id="replan-diag-text">0 tarefas pendentes (0h acumuladas)</div>
+                    </div>
+                    <span style="font-size: 26px;">⚠️</span>
                 </div>
-                <span style="font-size: 26px;">⚠️</span>
+                <div id="replan-details-text" style="font-size: 12px; color: var(--text-secondary); margin-top: 6px; line-height: 1.5;"></div>
+
+                <div id="replan-today-option" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.1); display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="replan-include-today" style="width: 16px; height: 16px; cursor: pointer;" checked>
+                    <label for="replan-include-today" style="font-size: 13px; color: var(--text-primary); cursor: pointer;" id="replan-include-today-label">
+                        Incluir metas pendentes do dia atual no replanejamento
+                    </label>
+                </div>
             </div>
 
             <!-- Escolha da Estratégia -->
@@ -5699,7 +6055,7 @@
                         <span class="badge-bom">Mais Seguro</span>
                     </div>
                     <div style="font-size: 12px; color: var(--text-secondary);">
-                        Distribui as tarefas acumuladas em fatias leves ao longo dos próximos dias para que você recupere o ritmo sem sobrecarga.
+                        Distribui as metas acumuladas em fatias leves ao longo dos próximos dias para que você recupere o ritmo sem sobrecarga.
                     </div>
                 </div>
 
@@ -5748,6 +6104,32 @@
             <div style="display: flex; gap: 10px;">
                 <button class="btn btn-outline" style="flex: 1;" onclick="closeReplanModal()">Cancelar</button>
                 <button class="btn btn-warning" style="flex: 2;" onclick="applyReplanStrategy()">⚡ Aplicar Replanejamento</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Mover Meta Individual (Touch & Mobile) -->
+    <div id="modal-move-task" class="modal-overlay" style="z-index: 9999;">
+        <div class="modal-content" style="width: 480px; max-width: 95vw;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">📅 Mover Meta de Estudo</h3>
+                <button class="btn btn-outline btn-icon" onclick="closeMoveTaskModal()">✕</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+                Escolha o dia de destino para realocar esta meta de estudo no cronograma:
+            </p>
+            <div id="move-task-info" style="background: var(--bg-card); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 16px;">
+                <!-- Preenchido via JS -->
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; margin-bottom: 6px; display: block;">Dia de Destino:</label>
+                <select id="move-task-select-day" style="width: 100%; padding: 10px; border-radius: 8px; font-weight: 600;">
+                    <!-- Preenchido via JS -->
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-outline" style="flex: 1;" onclick="closeMoveTaskModal()">Cancelar</button>
+                <button class="btn btn-primary" style="flex: 2;" onclick="confirmMoveTaskToDay()">✓ Confirmar Mudança</button>
             </div>
         </div>
     </div>
